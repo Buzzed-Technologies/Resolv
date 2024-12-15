@@ -9,13 +9,13 @@ struct ProgressItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.system(size: 14))
+                .font(.custom("PlayfairDisplay-Regular", size: 14))
                 .foregroundColor(.secondary)
             Text(value)
-                .font(.system(size: 28, weight: .semibold))
+                .font(.custom("PlayfairDisplay-SemiBold", size: 28))
                 .foregroundColor(.primary)
             Text(subtitle)
-                .font(.system(size: 13))
+                .font(.custom("PlayfairDisplay-Regular", size: 13))
                 .foregroundColor(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -122,7 +122,7 @@ struct GoalsListView: View {
                                 .font(.system(size: 24))
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(goal.title)
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.custom("PlayfairDisplay-SemiBold", size: 17))
                                     .foregroundColor(.primary)
                                 
                                 let goalTasks = getTaskHistory(goal.title)
@@ -131,7 +131,7 @@ struct GoalsListView: View {
                                 
                                 if totalCount > 0 {
                                     Text("\(completedCount) of \(totalCount) tasks completed")
-                                        .font(.system(size: 14))
+                                        .font(.custom("PlayfairDisplay-Regular", size: 14))
                                         .foregroundColor(.secondary)
                                 }
                             }
@@ -160,6 +160,7 @@ struct PlanOverviewView: View {
     @State private var showingResetAlert = false
     @State private var showingPersonalDetails = false
     @State private var showingPastChallenges = false
+    @State private var summaryText: String = "Loading..."
     
     private var progressPercentage: Double {
         guard let currentDay = userData.currentDay else { return 0 }
@@ -174,13 +175,35 @@ struct PlanOverviewView: View {
         return formatter.string(from: targetDate) + "rd"
     }
     
-    private var currentDaySummary: String {
-        guard let currentDay = userData.currentDay else { return "" }
-        let missedGoals = Double(userData.dailyTaskHistory.last?.tasks.filter { !$0.isCompleted }.count ?? 0)
-        let totalGoals = Double(userData.dailyTaskHistory.last?.tasks.count ?? 0)
-        let missedPercentage = totalGoals > 0 ? (missedGoals / totalGoals) * 100 : 0
+    private func loadDailySummary() {
+        guard let currentDay = userData.currentDay else {
+            summaryText = ""
+            return
+        }
         
-        return "We're only on day three, but strong progress already. You've missed under \(Int(missedPercentage))% of your goals, and I want you to remember, the end is closer than you think!"
+        // Calculate previous day completion rate
+        let previousDayCompletion: Double? = {
+            guard let lastDayTasks = userData.dailyTaskHistory.last?.tasks else { return nil }
+            let completedCount = lastDayTasks.filter { $0.isCompleted }.count
+            return Double(completedCount) / Double(lastDayTasks.count)
+        }()
+        
+        // Generate summary using OpenAI service
+        OpenAIService.shared.generateDailySummary(
+            day: currentDay,
+            totalDays: userData.planDuration,
+            name: userData.name,
+            goals: userData.goals,
+            previousDayCompletion: previousDayCompletion
+        ) { summary in
+            DispatchQueue.main.async {
+                if let summary = summary {
+                    self.summaryText = summary
+                } else {
+                    self.summaryText = "Unable to generate summary"
+                }
+            }
+        }
     }
     
     var body: some View {
@@ -193,7 +216,7 @@ struct PlanOverviewView: View {
                         .foregroundColor(.primary)
                     
                     Text("Target: \(targetDate)")
-                        .font(.system(size: 17))
+                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                         .foregroundColor(.primary)
                     
                     // Progress Bar
@@ -213,10 +236,13 @@ struct PlanOverviewView: View {
                     .frame(height: 8)
                     .padding(.vertical, 16)
                     
-                    Text(currentDaySummary)
-                        .font(.system(size: 17))
+                    Text(summaryText)
+                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                         .foregroundColor(.primary)
                         .padding(.bottom, 24)
+                        .onAppear {
+                            loadDailySummary()
+                        }
                 }
                 .padding(.horizontal, 24)
                 
@@ -257,17 +283,17 @@ struct PlanOverviewView: View {
                     Button("Privacy Policy") {
                         // Handle privacy policy action
                     }
-                    .font(.system(size: 17))
+                    .font(.custom("PlayfairDisplay-Regular", size: 17))
                     .foregroundColor(.secondary)
                     
                     Button("Terms & Conditions") {
                         // Handle terms action
                     }
-                    .font(.system(size: 17))
+                    .font(.custom("PlayfairDisplay-Regular", size: 17))
                     .foregroundColor(.secondary)
                     
                     Text("Made with ❤️ by the Resolv team")
-                        .font(.system(size: 15))
+                        .font(.custom("PlayfairDisplay-Regular", size: 15))
                         .foregroundColor(.secondary)
                         .padding(.top, 8)
                 }
@@ -313,7 +339,7 @@ struct MenuRowView: View {
                 
                 if let subtitle = subtitle {
                     Text(subtitle)
-                        .font(.system(size: 17))
+                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                         .foregroundColor(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
@@ -361,7 +387,7 @@ struct EditGoalView: View {
                                 .foregroundColor(.appText)
                         }
                         Text("Edit your plan to better align with your progress and goals")
-                            .font(.system(size: 17))
+                            .font(.custom("PlayfairDisplay-Regular", size: 17))
                             .foregroundColor(.appTextSecondary)
                     }
                     .padding(.horizontal)
@@ -373,7 +399,7 @@ struct EditGoalView: View {
                                 // Edit Mode
                                 VStack(alignment: .leading, spacing: 12) {
                                     TextEditor(text: $editedPlanText)
-                                        .font(.system(size: 17))
+                                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                                         .foregroundColor(.appText)
                                         .frame(minHeight: 100)
                                         .padding(8)
@@ -419,12 +445,12 @@ struct EditGoalView: View {
                                 // View Mode
                                 HStack(alignment: .top) {
                                     Text("\(index + 1).")
-                                        .font(.system(size: 17, weight: .semibold))
+                                        .font(.custom("PlayfairDisplay-SemiBold", size: 17))
                                         .foregroundColor(.appTextSecondary)
                                         .frame(width: 30, alignment: .leading)
                                     
                                     Text(plan)
-                                        .font(.system(size: 17))
+                                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                                         .foregroundColor(.appText)
                                     
                                     Spacer()
@@ -450,18 +476,10 @@ struct EditGoalView: View {
                     .animation(.easeInOut(duration: 0.2), value: editingPlanIndex)
                     
                     // Save Button
-                    Button(action: {
+                    ModernButton(title: "Save Changes") {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         saveChanges()
                         dismiss()
-                    }) {
-                        Text("Save Changes")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.black)
-                            .cornerRadius(25)
                     }
                     .padding(.horizontal)
                     
@@ -474,12 +492,50 @@ struct EditGoalView: View {
                             Image(systemName: "trash")
                             Text("Delete Goal")
                         }
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(.red)
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
-                        .background(Color(UIColor.systemGray6))
-                        .cornerRadius(25)
+                        .frame(height: 60)
+                        .background(
+                            ZStack {
+                                // Deep layer (darkest)
+                                Capsule()
+                                    .fill(Color.red.opacity(0.8))
+                                    .offset(y: 6)
+                                
+                                // Middle layer
+                                Capsule()
+                                    .fill(Color.red.opacity(0.9))
+                                    .offset(y: 3)
+                                
+                                // Top layer
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.red.opacity(0.7),
+                                                Color.red
+                                            ]),
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                    )
+                                
+                                // Glossy overlay
+                                Capsule()
+                                    .fill(
+                                        LinearGradient(
+                                            gradient: Gradient(colors: [
+                                                Color.white.opacity(0.25),
+                                                Color.clear
+                                            ]),
+                                            startPoint: .top,
+                                            endPoint: .center
+                                        )
+                                    )
+                                    .padding(2)
+                            }
+                        )
                     }
                     .padding(.horizontal)
                 }

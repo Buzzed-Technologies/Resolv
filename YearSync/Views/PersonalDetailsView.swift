@@ -27,7 +27,7 @@ struct PersonalDetailsView: View {
                 // Main Content
                 Group {
                     // Personal Information Section
-                    SectionView(title: "Personal Information") {
+                    SectionView(title: "") {
                         VStack(spacing: 16) {
                             // Name and Age in one row
                             HStack(spacing: 12) {
