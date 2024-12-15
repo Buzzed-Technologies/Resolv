@@ -29,10 +29,10 @@ struct PastChallengesView: View {
                         
                         VStack(spacing: 8) {
                             Text("No Past Challenges Yet")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.custom("PlayfairDisplay-Bold", size: 20))
                                 .foregroundColor(.primary)
                             Text("Complete your first challenge to see it here!")
-                                .font(.system(size: 17))
+                                .font(.custom("PlayfairDisplay-Regular", size: 17))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                         }
@@ -55,6 +55,7 @@ struct PastChallengesView: View {
             trailing: Button("Done") {
                 dismiss()
             }
+            .font(.custom("PlayfairDisplay-Regular", size: 17))
         )
     }
 }
@@ -88,10 +89,10 @@ struct ChallengeCardView: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dateFormatter.string(from: challenge.completedDate))
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.custom("PlayfairDisplay-SemiBold", size: 17))
                         .foregroundColor(.primary)
                     Text("\(challenge.duration) Day Challenge")
-                        .font(.system(size: 15))
+                        .font(.custom("PlayfairDisplay-Regular", size: 15))
                         .foregroundColor(.secondary)
                 }
                 
@@ -110,7 +111,7 @@ struct ChallengeCardView: View {
                         .rotationEffect(.degrees(-90))
                     
                     Text("\(Int(challenge.completionRate * 100))%")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.custom("PlayfairDisplay-Medium", size: 12))
                         .foregroundColor(completionColor)
                 }
             }
@@ -119,7 +120,7 @@ struct ChallengeCardView: View {
             if !challenge.goals.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Goals")
-                        .font(.subheadline)
+                        .font(.custom("PlayfairDisplay-Regular", size: 15))
                         .foregroundColor(.secondary)
                     
                     LazyVGrid(columns: [
@@ -130,7 +131,7 @@ struct ChallengeCardView: View {
                                 Text(goal.emoji)
                                     .font(.system(size: 16))
                                 Text(goal.title)
-                                    .font(.system(size: 14))
+                                    .font(.custom("PlayfairDisplay-Regular", size: 14))
                                     .foregroundColor(.primary)
                                     .lineLimit(1)
                             }

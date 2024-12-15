@@ -149,31 +149,34 @@ struct DailyChecklistView: View {
     private func headerView(currentDay: Int) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 16) {
-                // Day counter with calendar icon
+                // Use StableGradientCircle instead of AnimatedGradientCircle
                 HStack(spacing: 4) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 28))
-                        .foregroundColor(.black)
+                    StableGradientCircle(
+                        size: 40,
+                        primaryColor: Color(red: 0, green: 0.4, blue: 0)
+                    )
+                    .frame(width: 40, height: 40)
+                    
                     Text("Day \(currentDay)/\(viewModel.userData.planDuration)")
                         .font(.custom("PlayfairDisplay-Regular", size: 34))
                         .foregroundColor(.black)
                 }
                 
-                // Progress bar - made thicker and using accent color
+                // Progress bar remains the same
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color(UIColor.systemGray6))
-                            .frame(height: 20)  // Increased from 8 to 12
+                            .frame(height: 20)
                         
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(red: 0, green: 0.4, blue: 0))  // App's accent color
+                            .fill(Color(red: 0, green: 0.4, blue: 0))
                             .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
-                                   height: 20)  // Increased from 8 to 12
+                                   height: 20)
                     }
                 }
-                .frame(height: 12)  // Increased from 8 to 12
-                .padding(.top, 8)  // Keep alignment with text
+                .frame(height: 12)
+                .padding(.top, 8)
             }
             
             if !viewModel.dailySummary.isEmpty {
@@ -466,6 +469,63 @@ extension UIView {
             }
         }
         return nil
+    }
+}
+
+struct StableGradientCircle: View {
+    var size: CGFloat = 180
+    var primaryColor: Color = Color(red: 76/255, green: 175/255, blue: 80/255)
+    
+    var body: some View {
+        ZStack {
+            // Outer blurred circle for fade effect
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            primaryColor.opacity(0.2),
+                            primaryColor.opacity(0)
+                        ]),
+                        center: .center,
+                        startRadius: size * 0.3,
+                        endRadius: size * 0.6
+                    )
+                )
+                .frame(width: size * 1.5, height: size * 1.5)
+                .blur(radius: 20)
+            
+            // Main gradient circle
+            Circle()
+                .fill(
+                    RadialGradient(
+                        gradient: Gradient(colors: [
+                            primaryColor.opacity(0.7),
+                            primaryColor.opacity(0.3),
+                            primaryColor.opacity(0.1)
+                        ]),
+                        center: .center,
+                        startRadius: 0,
+                        endRadius: size * 0.5
+                    )
+                )
+                .frame(width: size, height: size)
+                .overlay(
+                    Circle()
+                        .stroke(
+                            LinearGradient(
+                                gradient: Gradient(colors: [
+                                    .white.opacity(0.5),
+                                    .clear
+                                ]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                        .scaleEffect(0.98)
+                        .blur(radius: 1)
+                )
+        }
     }
 }
 
