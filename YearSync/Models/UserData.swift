@@ -28,6 +28,7 @@ struct UserData: Codable {
     var dailyTaskHistory: [DailyTaskHistory]
     var journalEntries: [JournalEntry]
     var weeklySummaries: [WeeklySummary]
+    var pastChallenges: [PastChallenge] = []
     
     init(name: String? = nil,
          sex: String? = nil,
@@ -59,6 +60,13 @@ struct UserData: Codable {
         self.dailyTaskHistory = dailyTaskHistory
         self.journalEntries = journalEntries
         self.weeklySummaries = weeklySummaries
+        
+        // Save initial state
+        saveState()
+    }
+    
+    private func saveState() {
+        UserDefaultsHelper.shared.saveUserData(self)
     }
     
     var currentDay: Int? {
@@ -94,11 +102,14 @@ struct UserData: Codable {
         if dailyTaskHistory.count > 7 {
             dailyTaskHistory.removeFirst(dailyTaskHistory.count - 7)
         }
+        
+        saveState()
     }
     
     mutating func updateLastDayTasks(_ tasks: [DailyTask]) {
         guard !dailyTaskHistory.isEmpty else { return }
         dailyTaskHistory[dailyTaskHistory.count - 1].tasks = tasks
+        saveState()
     }
     
     func getTaskHistory(for goalTitle: String) -> [DailyTask] {
@@ -107,6 +118,8 @@ struct UserData: Codable {
     
     mutating func addJournalEntry(_ entry: JournalEntry) {
         journalEntries.append(entry)
+        saveState()
+        
         // Return early if there's nothing to analyze
         guard shouldGenerateWeeklySummary() else { return }
         
@@ -150,6 +163,7 @@ struct UserData: Codable {
         for index in entryIndices {
             journalEntries[index].isVisible = true
         }
+        saveState()
     }
     
     func getCurrentWeekEntries() -> [JournalEntry] {
@@ -163,12 +177,18 @@ struct UserData: Codable {
     }
     
     mutating func resetPlan() {
+        if !goals.isEmpty {
+            let pastChallenge = PastChallenge(from: self)
+            pastChallenges.append(pastChallenge)
+        }
+        
         planStartDate = nil
         lastCompletedDay = nil
         goals = []
         dailyTaskHistory = []
         journalEntries = []
         weeklySummaries = []
+        saveState()
     }
 }
 

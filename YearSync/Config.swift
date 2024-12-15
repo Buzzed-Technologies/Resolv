@@ -9,7 +9,7 @@ enum Config {
         
         // For development/testing only - should be replaced with proper key in production
         #if DEBUG
-        return "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"
+        return "sk-svcacct-FZCgvTqICurM5TXuA0EEuBdeIxSyDsEIxHvceVvLYhGr3l_DtMGP2Qiq4p6wL0bT3BlbkFJWwBsuP4ZcxeGADBoYLD327bxfllFIP2pZ_DRvyF4oFRA7DAwoFhDMpZ3s-yPfsQA"
         #else
         fatalError("OpenAI API Key not found. Set OPENAI_API_KEY environment variable.")
         #endif
