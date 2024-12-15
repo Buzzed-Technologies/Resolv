@@ -4,7 +4,7 @@ import SwiftUI
 extension Color {
     static let appAccent = Color(red: 39/255, green: 69/255, blue: 42/255)
     static let appBackground = Color.white
-    static let appSecondary = Color(.systemGray6)
+    static let appSecondary = Color(UIColor.systemGray6)
     static let appText = Color.black
     static let appTextSecondary = Color(UIColor.systemGray)
 }
@@ -150,7 +150,7 @@ struct GoalSelectionView: View {
                             .font(.custom("PlayfairDisplay-Regular", size: 16))
                             .frame(height: 100)
                             .scrollContentBackground(.hidden)
-                            .background(Color.clear)
+                            .background(Color.white)
                             .focused($isTextFieldFocused)
                     }
                     .padding(12)
@@ -222,6 +222,8 @@ struct GoalSelectionView: View {
                     }
             }
         }
+        .background(Color.white)
+        .preferredColorScheme(.light)
         .onReceive(timer) { _ in
             withAnimation {
                 currentSuggestionIndex = (currentSuggestionIndex + 1) % suggestions.count
@@ -270,6 +272,7 @@ struct GoalChip: View {
             )
         }
         .foregroundColor(isSelected ? accentColor : .black)
+        .background(Color.white)
     }
 }
 
