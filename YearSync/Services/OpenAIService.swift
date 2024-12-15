@@ -3,7 +3,7 @@ import Foundation
 class OpenAIService {
     static let shared = OpenAIService()
     
-    private let apiKey = Config.openAIApiKey
+    private var apiKey: String
     private let apiURL = "https://api.openai.com/v1/chat/completions"
     
     enum OpenAIError: Error {
@@ -14,9 +14,18 @@ class OpenAIService {
     }
     
     private init() {
+        self.apiKey = Config.openAIApiKey
         if apiKey.isEmpty {
             print("Warning: OpenAI API key is not set")
         }
+    }
+    
+    func setAPIKey(_ key: String) {
+        self.apiKey = key
+    }
+    
+    func clearAPIKey() {
+        self.apiKey = ""
     }
     
     private func sendPrompt(_ prompt: String) async throws -> String {
@@ -85,7 +94,7 @@ class OpenAIService {
         prompt += """
         \n
         Task Creation Guidelines:
-        1. Create arround 12 specific, actionable tasks across all goals (use on emojie for each task)
+        1. Create arround 12 specific, actionable tasks across all goals (use on emojie for each task no blank tasks)
         2. Focus on building lasting habits
         3. Make each task clear and measurable
         4. Progressive Difficulty: Day \(day) tasks should be \(calculateProgressiveIntensity(day: day))% more challenging
@@ -93,7 +102,7 @@ class OpenAIService {
         6. Include preparation steps when needed
         7. Add specific metrics or targets when relevant
         8. Keep language motivating and supportive
-        9. Ensure even distribution across goals (2-3 tasks per goal)
+        9. Ensure even distribution across goals
 
         Example tasks:
         - 🚰 Fill your water bottle to the 32oz mark and keep it visible on your desk
@@ -506,6 +515,80 @@ class OpenAIService {
         } else {
             return "Simplify tasks and focus on building consistency"
         }
+    }
+    
+    func processJournalMessage(_ messages: [Message]) async throws -> String {
+        let conversationHistory = messages.map { message in
+            [
+                "role": message.isUser ? "user" : "assistant",
+                "content": message.content
+            ]
+        }
+        
+        let systemPrompt = """
+        You are an insightful and empathetic journaling companion, helping users explore and understand their daily experiences more deeply. Your role is to create a natural flow of reflection that reads like a thoughtful conversation between friends.
+
+        Guidelines for responses:
+        1. Help users unpack their experiences by gently exploring specific moments or feelings they mention
+        2. Notice patterns and connections in their day, pointing out insights they might have missed
+        3. For challenges or difficulties:
+           - Acknowledge the emotion
+           - Help identify what could be learned
+           - Suggest specific, actionable steps for tomorrow
+           - Keep the tone encouraging and growth-focused
+        
+        4. For positive experiences:
+           - Help them savor the moment by exploring what made it special
+           - Identify what strategies or choices led to the success
+           - Suggest how to recreate similar positive experiences
+        
+        5. Writing style:
+           - Write like a thoughtful friend having a natural conversation
+           - Use phrases like "I notice that..." or "It sounds like..."
+           - Keep responses focused but warm
+           - Avoid generic advice - make suggestions specific to their situation
+        
+        6. End each response with either:
+           - A gentle question that explores deeper
+           - A specific observation about their growth
+           - A concrete suggestion for tomorrow
+        
+        Remember: The goal is to help them process their day in a way that feels like writing in a journal with a wise friend who helps them understand themselves better.
+        """
+        
+        var allMessages: [[String: Any]] = [
+            ["role": "system", "content": systemPrompt]
+        ]
+        allMessages.append(contentsOf: conversationHistory)
+        
+        let body: [String: Any] = [
+            "model": "gpt-4",
+            "messages": allMessages,
+            "temperature": 0.7,
+            "max_tokens": 150  // Keep responses concise
+        ]
+        
+        var request = URLRequest(url: URL(string: apiURL)!)
+        request.httpMethod = "POST"
+        request.addValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw OpenAIError.networkError
+        }
+        
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let choices = json["choices"] as? [[String: Any]],
+              let message = choices.first?["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw OpenAIError.invalidResponse
+        }
+        
+        return content
     }
 }
 

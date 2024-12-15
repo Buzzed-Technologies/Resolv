@@ -14,62 +14,69 @@ struct DailyChecklistView: View {
     
     var body: some View {
         NavigationView {
-            ZStack(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    // Header Views with improved animation
-                    if let currentDay = viewModel.userData.currentDay {
-                        headerView(currentDay: currentDay)
-                            .opacity(appearAnimation ? 1 : 0)
-                            .offset(y: appearAnimation ? 0 : -20)
-                    }
-                    
-                    // Content
-                    if let currentDay = viewModel.userData.currentDay {
-                        if !hasLoaded && viewModel.isLoadingTasks {
-                            LoadingView(message: "")
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        } else {
-                            contentView(currentDay: currentDay)
-                                .transition(.opacity)
+            ZStack {
+                // Main content
+                ZStack(alignment: .bottom) {
+                    VStack(spacing: 0) {
+                        // Header Views with improved animation
+                        if let currentDay = viewModel.userData.currentDay {
+                            headerView(currentDay: currentDay)
+                                .opacity(appearAnimation ? 1 : 0)
+                                .offset(y: appearAnimation ? 0 : -20)
+                        }
+                        
+                        // Content
+                        if let currentDay = viewModel.userData.currentDay {
+                            if !hasLoaded && viewModel.isLoadingTasks {
+                                LoadingView(message: "")
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            } else {
+                                contentView(currentDay: currentDay)
+                                    .transition(.opacity)
+                            }
                         }
                     }
+                    
+                    // Floating Action Button
+                    HStack(spacing: 40) {
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.showingHistory.toggle()
+                        }) {
+                            Image(systemName: "book")
+                                .font(.system(size: 24))
+                                .foregroundColor(.black)
+                        }
+                        
+                        Button(action: {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.showingPlanOverview.toggle()
+                        }) {
+                            Image(systemName: "chart.bar")
+                                .font(.system(size: 24))
+                                .foregroundColor(.black)
+                        }
+                    }
+                    .padding(.vertical, 12)
+                    .padding(.horizontal, 24)
+                    .background(
+                        Capsule()
+                            .fill(Color.white)
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color(red: 0, green: 0.4, blue: 0), lineWidth: 1.5)
+                            )
+                    )
+                    .padding(.bottom, 30)
+                    .opacity(appearAnimation ? 1 : 0)
+                    .offset(y: appearAnimation ? 0 : 20)
                 }
                 
-                // Floating Action Button
-                HStack(spacing: 40) {
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        viewModel.showingHistory.toggle()
-                    }) {
-                        Image(systemName: "book")
-                            .font(.system(size: 24))
-                            .foregroundColor(.black)
-                    }
-                    
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        viewModel.showingPlanOverview.toggle()
-                    }) {
-                        Image(systemName: "chart.bar")
-                            .font(.system(size: 24))
-                            .foregroundColor(.black)
-                    }
+                // Confetti overlay
+                if viewModel.showConfetti {
+                    ConfettiView()
+                        .allowsHitTesting(false)
                 }
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
-                .background(
-                    Capsule()
-                        .fill(Color.white)
-                        .shadow(color: Color.white.opacity(0.2), radius: 8, x: 0, y: 0)
-                        .overlay(
-                            Capsule()
-                                .stroke(Color(red: 0, green: 0.4, blue: 0), lineWidth: 1.5)
-                                .shadow(color: Color(red: 0, green: 0.3, blue: 0).opacity(0.9), radius: 4, x: 0, y: 0)
-                        )
-                )
-                .padding(.bottom, 30)
-                .opacity(appearAnimation ? 1 : 0)
-                .offset(y: appearAnimation ? 0 : 20)
             }
             .ignoresSafeArea(edges: .top)
             .alert("Reset Plan", isPresented: $showingResetAlert) {
@@ -152,21 +159,21 @@ struct DailyChecklistView: View {
                         .foregroundColor(.black)
                 }
                 
-                // Progress bar
+                // Progress bar - made thicker and using accent color
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
-                        RoundedRectangle(cornerRadius: 4)
+                        RoundedRectangle(cornerRadius: 6)
                             .fill(Color(UIColor.systemGray6))
-                            .frame(height: 8)
+                            .frame(height: 20)  // Increased from 8 to 12
                         
-                        RoundedRectangle(cornerRadius: 4)
-                            .fill(Color.green)
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color(red: 0, green: 0.4, blue: 0))  // App's accent color
                             .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
-                                   height: 8)
+                                   height: 20)  // Increased from 8 to 12
                     }
                 }
-                .frame(height: 8)
-                .padding(.top, 8)  // Align with text
+                .frame(height: 12)  // Increased from 8 to 12
+                .padding(.top, 8)  // Keep alignment with text
             }
             
             if !viewModel.dailySummary.isEmpty {
@@ -217,13 +224,19 @@ struct ConfettiView: View {
     @State private var isAnimating = false
     
     var body: some View {
-        ZStack {
-            ForEach(0..<50) { _ in
-                Circle()
-                    .fill(Color.random)
-                    .frame(width: 8, height: 8)
-                    .modifier(ParticlesModifier())
-                    .offset(x: .random(in: -150...150), y: isAnimating ? 400 : -100)
+        GeometryReader { geometry in
+            ZStack {
+                ForEach(0..<80) { _ in
+                    Circle()
+                        .fill(Color.random)
+                        .frame(width: 8, height: 8)
+                        .modifier(ParticlesModifier())
+                        .offset(
+                            x: .random(in: -geometry.size.width/4...geometry.size.width/4),
+                            y: isAnimating ? geometry.size.height : -geometry.size.height/3
+                        )
+                        .position(x: geometry.size.width/2, y: geometry.size.height/3)
+                }
             }
         }
         .onAppear {
@@ -281,14 +294,13 @@ struct TaskCard: View {
     let task: DailyTask
     @EnvironmentObject var viewModel: AppViewModel
     @State private var offset: CGFloat = 0
-    @State private var showConfetti = false
     
     var body: some View {
         Button(action: {
             withAnimation(.spring()) {
                 viewModel.toggleTask(task)
                 if !task.isCompleted {
-                    showConfetti = true
+                    viewModel.triggerConfetti()
                     
                     // Haptic feedback
                     let generator = UINotificationFeedbackGenerator()
@@ -301,55 +313,46 @@ struct TaskCard: View {
                 HStack(spacing: 16) {
                     Text(task.emoji)
                         .font(.system(size: 32))
+                        .padding(12)
+                        .background(
+                            Circle()
+                                .fill(Color(UIColor.systemGray6))
+                        )
                     
-                    Text(task.task)
-                        .font(.custom("PlayfairDisplay-Regular", size: 20))
-                        .foregroundColor(.black)
-                        .strikethrough(task.isCompleted, color: .black)
-                        .multilineTextAlignment(.leading)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(task.task)
+                            .font(.custom("PlayfairDisplay-Regular", size: 20))
+                            .foregroundColor(.black)
+                            .strikethrough(task.isCompleted, color: .black)
+                            .multilineTextAlignment(.leading)
+                        
+                        if task.isCompleted, let completionTime = task.formattedCompletionTime {
+                            Text(completionTime)
+                                .font(.system(size: 15))
+                                .foregroundColor(.gray)
+                        }
+                    }
                     
                     Spacer()
                     
-                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
-                        .font(.system(size: 24))
-                        .foregroundColor(task.isCompleted ? .green : .gray.opacity(0.3))
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundColor(task.isCompleted ? .green : Color(UIColor.systemGray4))
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                
-                // Divider line
-                if task.isCompleted {
-                    Rectangle()
-                        .fill(Color(UIColor.systemGray5))
-                        .frame(height: 1)
-                    
-                    // Bottom section with completion time
-                    if let completionTime = task.formattedCompletionTime {
-                        HStack {
-                            Text(completionTime)
-                                .font(.system(size: 17))
-                                .foregroundColor(.gray)
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 12)
-                            Spacer()
-                        }
-                    }
-                }
+                .padding(.vertical, 16)
             }
-            .background(Color.white)
-            .cornerRadius(12)
-            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white)
+                    .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+                    )
+            )
         }
         .buttonStyle(TaskCardButtonStyle())
-        
-        if showConfetti {
-            ConfettiView()
-                .onAppear {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                        showConfetti = false
-                    }
-                }
-        }
     }
 }
 
@@ -439,5 +442,30 @@ struct TaskCardButtonStyle: ButtonStyle {
             .opacity(configuration.isPressed ? 0.9 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: configuration.isPressed)
     }
-} 
+}
+
+// Helper extensions to find parent views
+extension UIView {
+    func findViewController() -> UIViewController? {
+        if let nextResponder = self.next as? UIViewController {
+            return nextResponder
+        } else if let nextResponder = self.next as? UIView {
+            return nextResponder.findViewController()
+        } else {
+            return nil
+        }
+    }
+    
+    func findView<T: View>(ofType type: T.Type) -> T? {
+        for subview in subviews {
+            if let view = subview as? T {
+                return view
+            }
+            if let foundView = subview.findView(ofType: type) {
+                return foundView
+            }
+        }
+        return nil
+    }
+}
 

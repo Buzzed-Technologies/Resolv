@@ -16,6 +16,7 @@ class AppViewModel: ObservableObject {
     @Published var showingHistory = false
     @Published var showingPlanOverview = false
     @Published var dailySummary: String = ""
+    @Published var showConfetti: Bool = false
     
     private let userDefaults = UserDefaults.standard
     private let userDataKey = "userData"
@@ -46,37 +47,38 @@ class AppViewModel: ObservableObject {
            let decodedData = try? JSONDecoder().decode(UserData.self, from: savedData) {
             self.userData = decodedData
             
-            // Start with welcome screen as default
-            self.currentScreen = .welcome
-            
-            // Check subscription status and plan state
-            Task {
-                // Wait for StoreKit to initialize and check subscription
-                await StoreKitManager.shared.updateSubscriptionStatus()
-                
-                // Check if we have a valid active plan
-                let hasActivePlan = decodedData.planStartDate != nil && 
-                                  decodedData.goals.count > 0 &&
-                                  decodedData.currentDay != nil &&
-                                  decodedData.currentDay! <= decodedData.planDuration
-                
-                // If we have a saved plan and user is subscribed, show the daily checklist
-                if hasActivePlan && StoreKitManager.shared.isSubscribed {
-                    await MainActor.run {
-                        self.currentScreen = .dailyChecklist
-                        // Generate daily tasks if needed
-                        Task {
-                            await self.generateDailyTasksIfNeeded()
-                        }
-                    }
+            // Check if we have a valid active plan using UserDefaultsHelper
+            if UserDefaultsHelper.shared.hasActivePlan() {
+                print("Found active plan - Starting in daily checklist")
+                self.currentScreen = .dailyChecklist
+                // Generate daily tasks if needed
+                Task {
+                    await self.generateDailyTasksIfNeeded()
                 }
+            } else {
+                print("No active plan found - Starting in welcome")
+                self.currentScreen = .welcome
             }
         } else {
+            print("No saved data found - Starting fresh")
             self.userData = UserData()
+            self.currentScreen = .welcome
         }
         
         // Start timer to refresh visible tasks
         startTaskRefreshTimer()
+        
+        // Check subscription status
+        Task {
+            await StoreKitManager.shared.updateSubscriptionStatus()
+            
+            // Only redirect to welcome if there's no active plan AND user is not subscribed
+            await MainActor.run {
+                if !StoreKitManager.shared.isSubscribed && !UserDefaultsHelper.shared.hasActivePlan() {
+                    self.currentScreen = .welcome
+                }
+            }
+        }
     }
     
     deinit {
@@ -201,16 +203,18 @@ class AppViewModel: ObservableObject {
     }
     
     private func saveUserData() {
+        print("Saving user data...")
+        print("Plan start date: \(String(describing: userData.planStartDate))")
+        print("Goals count: \(userData.goals.count)")
+        print("Current day: \(String(describing: userData.currentDay))")
+        print("Plan duration: \(userData.planDuration)")
+        
         if let encoded = try? JSONEncoder().encode(userData) {
             userDefaults.set(encoded, forKey: userDataKey)
-        }
-        
-        // Reschedule notifications when user data is saved
-        Task {
-            await NotificationManager.shared.scheduleNotifications(
-                for: userData.notificationPreference,
-                userData: userData
-            )
+            userDefaults.synchronize() // Force immediate save
+            
+            // Also save to UserDefaultsHelper for consistency
+            UserDefaultsHelper.shared.saveUserData(userData)
         }
     }
     
@@ -276,9 +280,16 @@ class AppViewModel: ObservableObject {
                             self.userData.planStartDate = Date()
                             self.userData.lastCompletedDay = nil
                             self.userData.dailyTaskHistory = []
-                            print("userData goals after update:", self.userData.goals)
                             
-                            // Only resume continuation after userData is updated
+                            // Force an immediate save after plan generation
+                            self.saveUserData()
+                            
+                            print("userData after plan generation:")
+                            print("- Goals count: \(self.userData.goals.count)")
+                            print("- Plan start date: \(String(describing: self.userData.planStartDate))")
+                            print("- Plan duration: \(self.userData.planDuration)")
+                            
+                            // Only resume continuation after userData is updated and saved
                             continuation.resume(returning: self.userData.goals)
                         }
                     } catch {
@@ -497,6 +508,13 @@ class AppViewModel: ObservableObject {
             
             // Trigger UI update
             objectWillChange.send()
+        }
+    }
+    
+    func triggerConfetti() {
+        showConfetti = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.showConfetti = false
         }
     }
 }
