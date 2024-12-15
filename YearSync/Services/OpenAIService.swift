@@ -3,16 +3,21 @@ import Foundation
 class OpenAIService {
     static let shared = OpenAIService()
     
-    private let apiKey = "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"
+    private let apiKey = Config.openAIApiKey
     private let apiURL = "https://api.openai.com/v1/chat/completions"
     
     enum OpenAIError: Error {
         case invalidResponse
         case networkError
         case decodingError
+        case invalidAPIKey
     }
     
-    private init() {}
+    private init() {
+        if apiKey.isEmpty {
+            print("Warning: OpenAI API key is not set")
+        }
+    }
     
     private func sendPrompt(_ prompt: String) async throws -> String {
         var request = URLRequest(url: URL(string: apiURL)!)
