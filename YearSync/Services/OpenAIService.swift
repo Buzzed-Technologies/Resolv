@@ -50,10 +50,8 @@ class OpenAIService {
     
     func generateDailyTasks(for goals: [Goal], day: Int, previousTasks: [DailyTask], wakeTime: String, sleepTime: String, completion: @escaping (String?) -> Void) {
         var prompt = """
-        Create a progressive, personalized daily schedule for Day \(day) considering:
-
-        User Profile:
-        \(generateUserProfileSection())
+        Create a set of arround 12 daily habit-building tasks and checkpoints for Day \(day) that will help build lasting habits for each goal.
+        Distribute the tasks evenly across goals, ensuring each goal has at least 2-3 tasks.
 
         Goals and Progress:
         """
@@ -61,6 +59,7 @@ class OpenAIService {
         // Add goals and their progress to prompt
         for goal in goals {
             prompt += "\n- \(goal.title) \(goal.emoji)"
+            prompt += "\nStrategy: \(goal.strategy)"
             
             // Add task completion history analysis
             let taskHistory = getTaskProgressAnalysis(for: goal.title, day: day)
@@ -73,7 +72,7 @@ class OpenAIService {
             if !incompleteTasks.isEmpty {
                 prompt += "\nIncomplete tasks from previous day:"
                 for task in incompleteTasks {
-                    prompt += "\n  - \(task.task) (was scheduled for \(task.formattedTime))"
+                    prompt += "\n  - \(task.task)"
                 }
             }
         }
@@ -81,41 +80,23 @@ class OpenAIService {
         prompt += """
         \n
         Task Creation Guidelines:
-        1. Create highly specific, actionable tasks that fit into the user's daily routine
-        2. Tasks should be time-appropriate (e.g., meal prep in morning/evening, exercise when energy is high)
-        3. Consider real-world context and practicality:
-           - For saving money: Suggest specific money-saving actions at relevant times (e.g., "Pack lunch for tomorrow at 8:00 PM")
-           - For exercise: Include warm-up and proper form reminders
-           - For meditation: Suggest quiet times of day
-           - For reading: Recommend specific durations and ideal times
-           - For water/nutrition: Time reminders around meals and activities
-        4. Progressive Difficulty: Day \(day) tasks should be \(calculateProgressiveIntensity(day: day))% more challenging than initial days
+        1. Create arround 12 specific, actionable tasks across all goals (use on emojie for each task)
+        2. Focus on building lasting habits
+        3. Make each task clear and measurable
+        4. Progressive Difficulty: Day \(day) tasks should be \(calculateProgressiveIntensity(day: day))% more challenging
         5. Adapt to completion rate: \(generateCompletionRateGuideline(for: previousTasks))
-        6. Space tasks throughout active hours (\(wakeTime) to \(sleepTime))
-        7. Include preparation tasks when relevant (e.g., "Prepare gym bag for tomorrow's workout")
-        8. Add specific metrics when possible (e.g., "Walk 2000 steps" instead of just "Take a walk")
-        9. Consider task dependencies and natural flow of the day
-        10. Tasks should build upon previous successes
+        6. Include preparation steps when needed
+        7. Add specific metrics or targets when relevant
+        8. Keep language motivating and supportive
+        9. Ensure even distribution across goals (2-3 tasks per goal)
 
-        Example tasks for different goals:
-        - Save money: "I suggest preparing a homemade lunch: turkey sandwich and fruit"
-        - Exercise: "I suggest starting with a 10-minute warm-up, then doing a 20-minute HIIT workout: 45s work, 15s rest"
-        - Meditation: "I suggest finding a quiet room for your evening meditation: 5 minutes breathing focus, 5 minutes body scan"
-        - Water intake: "I suggest filling your water bottle and placing it by your desk before starting work"
-        - Reading: "I suggest reading 20 pages of your current book before bed, in a quiet room with good lighting"
-
-        Task Writing Style:
-        1. Start specific recommendations with "I suggest" to make them more personal and suggestive
-        2. Use a friendly, coaching tone
-        3. Explain the benefits or reasoning when relevant
-        4. For exact instructions or metrics, always start with "I suggest"
-        5. Keep the tone encouraging and supportive
-
-        Examples of good task phrasing:
-        - "I suggest going for a 30-minute run at a comfortable pace to build your endurance"
-        - "I suggest preparing overnight oats now for a healthy breakfast tomorrow (saves time and money)"
-        - "I suggest practicing meditation for 10 minutes in a quiet space to reduce stress"
-        - "I suggest reviewing your expenses from today and updating your budget tracker"
+        Example tasks:
+        - 🚰 Fill your water bottle to the 32oz mark and keep it visible on your desk
+        - 🏃‍♂️ Complete a 20-minute run at a comfortable pace
+        - 💰 Review yesterday's expenses and categorize them
+        - 🧘‍♀️ Practice deep breathing for 5 minutes
+        - 📱 Use app limits to reduce screen time
+        - 🥗 Prepare a healthy lunch with protein and vegetables
 
         Format response as JSON with structure:
         {
@@ -124,8 +105,7 @@ class OpenAIService {
               "goalTitle": "exact goal title",
               "tasks": [
                 {
-                  "description": "specific progressive task starting with 'I suggest' when giving exact recommendations",
-                  "time": "HH:MM AM/PM",
+                  "description": "specific habit-building task",
                   "emoji": "relevant emoji"
                 }
               ]
@@ -145,7 +125,7 @@ class OpenAIService {
             "model": "gpt-4",
             "messages": [
                 ["role": "system", "content": """
-                You are a motivating personal coach that creates fun and engaging daily schedules.
+                You are a habit formation coach that creates practical daily tasks.
                 You must ALWAYS respond with ONLY valid JSON that matches exactly this structure:
                 {
                   "dailyTasks": [
@@ -153,20 +133,18 @@ class OpenAIService {
                       "goalTitle": "exact goal title from user",
                       "tasks": [
                         {
-                          "description": "task description",
-                          "time": "9:00 AM",
+                          "description": "habit-building task",
                           "emoji": "relevant emoji"
                         }
                       ]
                     }
                   ]
                 }
-                Rules for task scheduling:
-                1. Only schedule tasks during user's active hours
-                2. Space tasks appropriately throughout the day
-                3. Consider task dependencies and natural flow
-                4. Use specific times (HH:MM AM/PM format)
-                5. Choose relevant emojis for each task type:
+                Rules for tasks:
+                1. Focus on building lasting habits
+                2. Make each task specific and actionable
+                3. Include clear success criteria
+                4. Use relevant emojis for each task type:
                    - Exercise/Movement: 🏃‍♂️🚶‍♂️🏋️‍♂️🧘‍♂️
                    - Food/Drink: 🥤🍎🥗
                    - Sleep/Rest: 😴🛏️
@@ -233,47 +211,39 @@ class OpenAIService {
     
     func generatePlan(for goals: [String], duration: Int, completion: @escaping (String?) -> Void) {
         var prompt = """
-        Create a detailed \(duration)-day plan for each of these goals:
+        Create a transformative \(duration)-day plan for these habit-building goals:
 
         Goals:
         \(goals.map { "- \($0)" }.joined(separator: "\n"))
 
-        For each goal:
-        1. Break down the goal into 3-4 specific, actionable sub-tasks
-        2. Make each sub-task clear and measurable
-        3. Focus on building sustainable habits
-        4. Consider the \(duration)-day timeframe
-        5. Make tasks engaging and achievable
+        For each goal, provide:
+        1. A motivating paragraph explaining how to transform this area of life in \(duration) days
+        2. 3-4 specific daily/weekly habits that will lead to being 100x better at this goal
+        3. Focus on sustainable, long-term behavior change
+        4. Consider the psychology of habit formation
+        5. Explain how these changes compound over the \(duration)-day period
 
-        Requirements for sub-tasks:
-        - Start with action verbs
-        - Be specific and measurable
-        - Focus on daily or weekly actions
-        - Include target numbers or durations when relevant
-        - Keep language simple and direct
-
-        Example format for "Drink more water":
-        - Drink 8 cups of water every day
-        - Keep a water bottle within arm's reach at all times
-        - Track water intake in the morning and evening
-        - Set reminders for every 2 hours during the day
-
-        Example format for "Lift":
-        - Work out twice a week, focusing on proper form
-        - Start with bodyweight exercises to build foundation
-        - Follow a progressive overload plan
-        - Schedule rest days between workouts
+        Example response for "Drink more water":
+        {
+          "title": "Drink more water",
+          "strategy": "Over the next \(duration) days, we'll rewire your hydration habits by creating multiple daily triggers for water consumption. By linking water intake to existing habits and making it incredibly convenient, you'll naturally increase your daily water intake. The key is to start with small, manageable amounts and gradually increase, while building strong environmental cues that make drinking water your default behavior.",
+          "subPlans": [
+            "Place a full water bottle next to your bed each night - it's your first action each morning",
+            "Drink one full glass of water before each meal - use meals as triggers",
+            "Set up water stations at your desk, car, and bag - make it impossible to forget"
+          ]
+        }
 
         Format the response as JSON with this exact structure:
         {
           "goals": [
             {
               "title": "exact goal title",
-              "strategy": "Brief explanation of the approach",
+              "strategy": "Transformative strategy paragraph",
               "subPlans": [
-                "Specific task 1",
-                "Specific task 2",
-                "Specific task 3"
+                "Specific habit 1",
+                "Specific habit 2",
+                "Specific habit 3"
               ]
             }
           ]
@@ -289,18 +259,16 @@ class OpenAIService {
             "model": "gpt-4",
             "messages": [
                 ["role": "system", "content": """
-                You are an expert coach who creates detailed, actionable plans.
+                You are a transformative habit coach who helps people achieve dramatic improvements through small, consistent changes.
                 For each goal:
-                1. Create a clear progression strategy
-                2. Explain how the approach will evolve over time
-                3. Be specific about methods and activities
-                4. Include measurable milestones
-                5. Consider the user's starting point
-                6. Make it engaging and achievable
+                1. Write an inspiring yet practical strategy paragraph
+                2. Focus on the compound effect of small daily actions
+                3. Create habits that attach to existing behaviors
+                4. Make the path to improvement crystal clear
+                5. Keep everything simple and achievable
                 
-                The strategy should read like a coach explaining their approach.
-                Focus on practical, actionable steps and clear progression.
-                Avoid generic advice - be specific about methods and activities.
+                The strategy should feel like a personal coach explaining exactly how to transform this area of life.
+                Focus on the psychology of habit formation and making changes stick.
                 Remember: Respond with ONLY valid JSON that matches exactly the specified structure.
                 """],
                 ["role": "user", "content": prompt]
@@ -516,15 +484,7 @@ class OpenAIService {
         guard !relevantTasks.isEmpty else { return "" }
         let completionRate = Double(completedTasks.count) / Double(relevantTasks.count)
         
-        var analysis = "Completion rate: \(Int(completionRate * 100))%"
-        
-        // Analyze timing patterns
-        guard !completedTasks.isEmpty else { return analysis }
-        let onTimeTasks = completedTasks.filter { $0.completionStatus == .onTime }
-        let onTimeRate = Double(onTimeTasks.count) / Double(completedTasks.count)
-        analysis += "\nOn-time completion: \(Int(onTimeRate * 100))%"
-        
-        return analysis
+        return "Completion rate: \(Int(completionRate * 100))%"
     }
     
     private func generateCompletionRateGuideline(for previousTasks: [DailyTask]) -> String {
@@ -544,7 +504,18 @@ class OpenAIService {
     }
 }
 
-private struct WeeklyAnalysis: Codable {
+// Response models for OpenAI
+struct PlanResponse: Codable {
+    struct GeneratedGoal: Codable {
+        let title: String
+        let strategy: String
+        let subPlans: [String]
+    }
+    
+    let goals: [GeneratedGoal]
+}
+
+struct WeeklyAnalysis: Codable {
     let analysis: String
     let suggestedGoals: [String]
 } 

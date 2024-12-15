@@ -66,7 +66,7 @@ struct JournalView: View {
                 // Journal Entry Section
                 VStack(alignment: .leading, spacing: 16) {
                     Text("How was your day?")
-                        .font(.custom("Baskerville-Bold", size: 24))
+                        .font(.custom("PlayfairDisplay-Regular", size: 24))
                         .foregroundColor(.appText)
                     
                     ZStack(alignment: .topLeading) {
@@ -90,17 +90,8 @@ struct JournalView: View {
                     .background(Color(UIColor.systemGray6))
                     .cornerRadius(12)
                     
-                    Button(action: {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    ModernButton(title: "Save Entry") {
                         saveJournalEntry()
-                    }) {
-                        Text("Save Entry")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.black)
-                            .cornerRadius(25)
                     }
                 }
                 .padding(.horizontal)
@@ -108,7 +99,7 @@ struct JournalView: View {
                 // Today's Completed Tasks Section
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Today's Completed Tasks")
-                        .font(.custom("Baskerville-Bold", size: 24))
+                        .font(.custom("PlayfairDisplay-Bold", size: 24))
                         .foregroundColor(.appText)
                     
                     ForEach(userData.dailyTaskHistory.last?.tasks.filter { $0.isCompleted } ?? [], id: \.id) { task in
@@ -136,7 +127,7 @@ struct JournalView: View {
                 if !userData.getCurrentWeekEntries().isEmpty {
                     VStack(alignment: .leading, spacing: 16) {
                         Text("This Week's Entries")
-                            .font(.custom("Baskerville-Bold", size: 24))
+                            .font(.custom("PlayfairDisplay-Bold", size: 24))
                             .foregroundColor(.appText)
                         
                         ForEach(userData.getCurrentWeekEntries()) { entry in
@@ -165,21 +156,14 @@ struct JournalView: View {
         ScrollView {
             if userData.weeklySummaries.isEmpty {
                 VStack(spacing: 32) {
-                    Circle()
-                        .fill(Color.appAccent.opacity(0.3))
-                        .frame(width: 120, height: 120)
-                        .scaleEffect(selectedTab == 1 ? 0.85 : 1.0)
-                        .opacity(selectedTab == 1 ? 0.3 : 0.6)
-                        .shadow(color: Color.appAccent.opacity(0.3), radius: 20, x: 0, y: 0)
-                        .animation(
-                            Animation.easeInOut(duration: 1.2)
-                                .repeatForever(autoreverses: true),
-                            value: selectedTab
-                        )
+                    AnimatedGradientCircle(
+                        size: 120,
+                        primaryColor: .appAccent
+                    )
                     
                     VStack(spacing: 16) {
                         Text("No Past Entries Yet")
-                            .font(.custom("Baskerville-Bold", size: 24))
+                            .font(.custom("PlayfairDisplay-Regular", size: 24))
                             .foregroundColor(.appText)
                         
                         Text("Keep journaling daily! After a week, you'll see AI-powered insights and personalized goal suggestions here.")
@@ -196,7 +180,7 @@ struct JournalView: View {
                     ForEach(userData.weeklySummaries) { summary in
                         VStack(alignment: .leading, spacing: 16) {
                             Text(formatWeekRange(start: summary.weekStartDate, end: summary.weekEndDate))
-                                .font(.custom("Baskerville-Bold", size: 24))
+                                .font(.custom("PlayfairDisplay-Bold", size: 24))
                                 .foregroundColor(.appText)
                             
                             VStack(alignment: .leading, spacing: 16) {
@@ -268,7 +252,7 @@ struct WeeklySummaryView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     Text("Weekly Wrap-up")
-                        .font(.custom("Baskerville-Bold", size: 34))
+                        .font(.custom("PlayfairDisplay-Regular", size: 34))
                         .foregroundColor(.appText)
                     
                     VStack(alignment: .leading, spacing: 16) {

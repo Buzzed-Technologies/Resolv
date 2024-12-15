@@ -5,13 +5,15 @@ struct Goal: Identifiable, Codable, Hashable {
     var title: String
     var emoji: String
     var isCustom: Bool
+    var strategy: String
     var subPlans: [String]
     
-    init(id: UUID = UUID(), title: String, emoji: String, isCustom: Bool = false, subPlans: [String] = []) {
+    init(id: UUID = UUID(), title: String, emoji: String, isCustom: Bool = false, strategy: String = "", subPlans: [String] = []) {
         self.id = id
         self.title = title
         self.emoji = emoji
         self.isCustom = isCustom
+        self.strategy = strategy
         self.subPlans = subPlans
     }
 }

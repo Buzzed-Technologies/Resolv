@@ -36,7 +36,7 @@ struct ProgressOverviewView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Plan Progress")
-                .font(.custom("Baskerville-Bold", size: 24))
+                .font(.custom("PlayfairDisplay-Bold", size: 24))
                 .foregroundColor(.appText)
             
             HStack(spacing: 24) {
@@ -84,7 +84,7 @@ struct PerformanceInsightsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Performance Insights")
-                .font(.custom("Baskerville-Bold", size: 24))
+                .font(.custom("PlayfairDisplay-Bold", size: 24))
                 .foregroundColor(.appText)
             
             ForEach(insights, id: \.self) { insight in
@@ -116,7 +116,7 @@ struct GoalsListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Your Goals")
-                .font(.custom("Baskerville-Bold", size: 24))
+                .font(.custom("PlayfairDisplay-Bold", size: 24))
                 .foregroundColor(.appText)
             
             ForEach(goals) { goal in
@@ -339,7 +339,7 @@ struct EditGoalView: View {
                             Text(goal.emoji)
                                 .font(.system(size: 34))
                             Text(goal.title)
-                                .font(.custom("Baskerville-Bold", size: 34))
+                                .font(.custom("PlayfairDisplay-Bold", size: 34))
                                 .foregroundColor(.appText)
                         }
                         Text("Edit your plan to better align with your progress and goals")

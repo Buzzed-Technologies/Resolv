@@ -10,28 +10,27 @@ struct DurationSelectionView: View {
             Color.white.ignoresSafeArea()
             
             VStack(alignment: .leading, spacing: 24) {
-                Text("How long do you want to build these habits?")
-                    .font(.custom("Baskerville-Bold", size: 34))
-                    .foregroundColor(.appText)
-                    .padding(.horizontal)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.trailing, 40)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(2)
-                
-                Text("Research shows it takes at least 21 days to form a new habit.")
-                    .font(.system(size: 17))
-                    .foregroundColor(.appTextSecondary)
-                    .padding(.horizontal)
-                    .minimumScaleFactor(0.8)
-                    .lineLimit(2)
+                // Centered Header
+                VStack(alignment: .center, spacing: 8) {
+                    Text("How long do you want to build these habits?")
+                        .font(.custom("PlayfairDisplay-Regular", size: 34))
+                        .foregroundColor(.appText)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                    
+                    Text("Research shows it takes at least 21 days to form a new habit.")
+                        .font(.system(size: 17))
+                        .foregroundColor(.appTextSecondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 24)
                 
                 VStack(alignment: .leading, spacing: 24) {
                     // Duration Selection
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
                             Text("\(Int(selectedDays))")
-                                .font(.custom("Baskerville-Bold", size: 40))
+                                .font(.custom("PlayfairDisplay-Regular", size: 40))
                                 .foregroundColor(.appText)
                                 .minimumScaleFactor(0.8)
                             Text("days")
@@ -55,7 +54,7 @@ struct DurationSelectionView: View {
                     // Notifications
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Would you like reminders?")
-                            .font(.custom("Baskerville-Bold", size: 24))
+                            .font(.custom("PlayfairDisplay-Regular", size: 24))
                             .foregroundColor(.appText)
                             .padding(.horizontal)
                         
@@ -75,22 +74,12 @@ struct DurationSelectionView: View {
                 
                 Spacer()
                 
-                Button(action: {
+                ModernButton(title: "Next", action: {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     withAnimation {
                         viewModel.moveToNextScreen()
                     }
-                }) {
-                    HStack {
-                        Text("Next")
-                            .font(.system(size: 17, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(Color.black)
-                    .cornerRadius(28)
-                }
+                })
                 .padding(.horizontal)
                 .padding(.bottom, 30)
             }

@@ -183,7 +183,6 @@ struct DailyTask: Codable, Identifiable, Hashable {
     let id: UUID
     let goalTitle: String
     let task: String
-    let scheduledTime: Date
     let emoji: String
     var isCompleted: Bool
     var completedAt: Date?
@@ -192,7 +191,6 @@ struct DailyTask: Codable, Identifiable, Hashable {
     init(id: UUID = UUID(), 
          goalTitle: String, 
          task: String, 
-         scheduledTime: Date, 
          emoji: String = "📝", 
          isCompleted: Bool = false, 
          completedAt: Date? = nil,
@@ -200,7 +198,6 @@ struct DailyTask: Codable, Identifiable, Hashable {
         self.id = id
         self.goalTitle = goalTitle
         self.task = task
-        self.scheduledTime = scheduledTime
         self.emoji = emoji
         self.isCompleted = isCompleted
         self.completedAt = completedAt
@@ -225,23 +222,6 @@ struct DailyTask: Codable, Identifiable, Hashable {
         }
     }
     
-    var timeWindow: ClosedRange<Date> {
-        let calendar = Calendar.current
-        let oneHourBefore = calendar.date(byAdding: .hour, value: -1, to: scheduledTime)!
-        let oneHourAfter = calendar.date(byAdding: .hour, value: 1, to: scheduledTime)!
-        return oneHourBefore...oneHourAfter
-    }
-    
-    var isInCurrentTimeWindow: Bool {
-        timeWindow.contains(Date())
-    }
-    
-    var formattedTime: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter.string(from: scheduledTime)
-    }
-    
     var formattedCompletionTime: String? {
         guard let completedAt = completedAt else { return nil }
         let formatter = DateFormatter()
@@ -250,56 +230,24 @@ struct DailyTask: Codable, Identifiable, Hashable {
     }
     
     var completionStatus: CompletionStatus {
-        guard let completedAt = completedAt else { return .pending }
-        
-        let diffInMinutes = Calendar.current.dateComponents([.minute], 
-                                                          from: scheduledTime, 
-                                                          to: completedAt).minute ?? 0
-        
-        if abs(diffInMinutes) <= 15 {
-            return .onTime
-        } else if diffInMinutes < 0 {
-            return .early
-        } else {
-            return .late
+        if isCompleted {
+            return .completed
         }
+        return .pending
     }
     
     enum CompletionStatus {
         case pending
-        case early
-        case onTime
-        case late
+        case completed
         
         var color: Color {
             switch self {
             case .pending:
                 return .gray
-            case .early:
-                return .yellow
-            case .onTime:
+            case .completed:
                 return .green
-            case .late:
-                return .red
             }
         }
-    }
-    
-    static func parseTime(_ timeString: String) -> Date? {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        
-        if let date = formatter.date(from: timeString) {
-            // Convert the parsed time to today's date
-            let calendar = Calendar.current
-            let now = Date()
-            let components = calendar.dateComponents([.hour, .minute], from: date)
-            return calendar.date(bySettingHour: components.hour ?? 0,
-                               minute: components.minute ?? 0,
-                               second: 0,
-                               of: now)
-        }
-        return nil
     }
 }
 

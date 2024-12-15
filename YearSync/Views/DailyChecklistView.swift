@@ -7,80 +7,71 @@ struct DailyChecklistView: View {
     @State private var isRefreshing = false
     @State private var selectedTab = 0
     @State private var appearAnimation = false
+    @State private var hasLoaded = false
     
     private let headerHeight: CGFloat = 180
     private let minimizedHeaderHeight: CGFloat = 60
     
     var body: some View {
         NavigationView {
-            ZStack(alignment: .top) {
-                Color.white.ignoresSafeArea()
-                
-                VStack(alignment: .leading, spacing: 24) {
+            ZStack(alignment: .bottom) {
+                VStack(spacing: 0) {
+                    // Header Views with improved animation
                     if let currentDay = viewModel.userData.currentDay {
-                        if viewModel.isLoadingTasks {
+                        headerView(currentDay: currentDay)
+                            .opacity(appearAnimation ? 1 : 0)
+                            .offset(y: appearAnimation ? 0 : -20)
+                    }
+                    
+                    // Content
+                    if let currentDay = viewModel.userData.currentDay {
+                        if !hasLoaded && viewModel.isLoadingTasks {
                             LoadingView(message: "")
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .transition(.opacity)
                         } else {
                             contentView(currentDay: currentDay)
                                 .transition(.opacity)
                         }
                     }
                 }
-                .padding(.top, headerHeight)
-                .padding(.bottom, 100)
                 
-                // Header Views
-                if let currentDay = viewModel.userData.currentDay {
-                    headerView(currentDay: currentDay)
-                        .opacity(appearAnimation ? 1 : 0)
-                        .offset(y: appearAnimation ? 0 : -20)
-                }
-                
-                // Bottom Navigation Bar
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 40) {
-                            Button(action: {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                viewModel.showingHistory.toggle()
-                            }) {
-                                Image(systemName: "book")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.black)
-                            }
-                            
-                            Button(action: {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                viewModel.showingPlanOverview.toggle()
-                            }) {
-                                Image(systemName: "chart.bar")
-                                    .font(.system(size: 24))
-                                    .foregroundColor(.black)
-                            }
-                        }
-                        .padding(.vertical, 12)
-                        .padding(.horizontal, 24)
-                        .background(
-                            Capsule()
-                                .fill(Color.white)
-                                .overlay(
-                                    Capsule()
-                                        .stroke(Color.green.opacity(0.8), lineWidth: 1.5)
-                                        .shadow(color: Color.green.opacity(0.5), radius: 4, x: 0, y: 0)
-                                )
-                                .shadow(color: Color.green.opacity(0.2), radius: 8, x: 0, y: 0)
-                        )
-                        Spacer()
+                // Floating Action Button
+                HStack(spacing: 40) {
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.showingHistory.toggle()
+                    }) {
+                        Image(systemName: "book")
+                            .font(.system(size: 24))
+                            .foregroundColor(.black)
                     }
-                    .padding(.bottom, 30)
-                    .opacity(appearAnimation ? 1 : 0)
-                    .offset(y: appearAnimation ? 0 : 20)
+                    
+                    Button(action: {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.showingPlanOverview.toggle()
+                    }) {
+                        Image(systemName: "chart.bar")
+                            .font(.system(size: 24))
+                            .foregroundColor(.black)
+                    }
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 24)
+                .background(
+                    Capsule()
+                        .fill(Color.white)
+                        .shadow(color: Color.white.opacity(0.2), radius: 8, x: 0, y: 0)
+                        .overlay(
+                            Capsule()
+                                .stroke(Color(red: 0, green: 0.4, blue: 0), lineWidth: 1.5)
+                                .shadow(color: Color(red: 0, green: 0.3, blue: 0).opacity(0.9), radius: 4, x: 0, y: 0)
+                        )
+                )
+                .padding(.bottom, 30)
+                .opacity(appearAnimation ? 1 : 0)
+                .offset(y: appearAnimation ? 0 : 20)
             }
+            .ignoresSafeArea(edges: .top)
             .alert("Reset Plan", isPresented: $showingResetAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Reset", role: .destructive) {
@@ -106,8 +97,11 @@ struct DailyChecklistView: View {
         }
         .task {
             await viewModel.generateDailyTasksIfNeeded()
+            
+            // Animate everything in sequence
             withAnimation(.easeOut(duration: 0.6)) {
                 appearAnimation = true
+                hasLoaded = true
             }
         }
         .preferredColorScheme(.light)
@@ -115,137 +109,100 @@ struct DailyChecklistView: View {
     
     @ViewBuilder
     private func contentView(currentDay: Int) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if let currentTask = viewModel.currentTasks.first {
-                TaskCard(task: currentTask, isCompleted: false)
-                    .padding(.top, 24)
-                    .padding(.horizontal)
-                    .transition(.asymmetric(
-                        insertion: .scale(scale: 0.9)
-                            .combined(with: .opacity)
-                            .combined(with: .offset(y: 20)),
-                        removal: .opacity
-                    ))
-            } else {
-                emptyStateCard()
-            }
-            
-            upcomingTasksSection()
-        }
-        .opacity(appearAnimation ? 1 : 0)
-        .offset(y: appearAnimation ? 0 : 20)
-    }
-    
-    @ViewBuilder
-    private func emptyStateCard() -> some View {
-        HStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(alignment: .center, spacing: 8) {
-                    Text("🎉")
-                        .font(.system(size: 20))
-                    Text("Good work, keep it up!")
-                        .font(.system(size: 17))
-                        .foregroundColor(.appText)
-                }
-                
-                Text("Your next task is coming up soon")
-                    .font(.system(size: 15))
-                    .foregroundColor(.appTextSecondary)
-            }
-            Spacer()
-        }
-        .padding(16)
-        .background(Color(UIColor.systemGray6))
-        .cornerRadius(16)
-        .padding(.top, 24)
-        .padding(.horizontal)
-        .transition(.asymmetric(
-            insertion: .scale(scale: 0.9)
-                .combined(with: .opacity)
-                .combined(with: .offset(y: 20)),
-            removal: .opacity
-        ))
-    }
-    
-    @ViewBuilder
-    private func upcomingTasksSection() -> some View {
-        let upcomingTasks = viewModel.upcomingTasks
-        
-        if !upcomingTasks.isEmpty {
+        ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Coming Up")
-                    .font(.custom("Baskerville-Bold", size: 24))
-                    .foregroundColor(.appText)
-                    .padding(.top, 8)
-                    .transition(.opacity)
-                
-                ForEach(Array(upcomingTasks.enumerated()), id: \.element.id) { index, task in
-                    UpcomingTaskCard(task: task)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.9)
-                                .combined(with: .opacity)
-                                .combined(with: .offset(y: 20))
-                                .animation(.easeOut.delay(Double(index) * 0.1)),
-                            removal: .opacity
-                        ))
+                // Sort tasks: incomplete first, then completed
+                let sortedTasks = viewModel.dailyTasks.sorted { task1, task2 in
+                    if task1.isCompleted == task2.isCompleted {
+                        // If both completed or both incomplete, maintain original order
+                        return task1.id.uuidString < task2.id.uuidString
+                    }
+                    // Put incomplete tasks first
+                    return !task1.isCompleted
                 }
+                
+                ForEach(sortedTasks) { task in
+                    TaskCard(task: task)
+                        .padding(.horizontal)
+                        .transition(.opacity)
+                }
+                
+                // Add bottom padding to account for floating action button
+                Spacer()
+                    .frame(height: 100)
             }
-            .padding(.horizontal)
+            .padding(.top, 16)
+            .opacity(appearAnimation ? 1 : 0)
+            .offset(y: appearAnimation ? 0 : 20)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.dailyTasks.map { $0.isCompleted })
         }
     }
     
     @ViewBuilder
     private func headerView(currentDay: Int) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Day \(currentDay) of \(viewModel.userData.planDuration)")
-                        .font(.custom("Baskerville-Bold", size: 34))
-                        .foregroundColor(.appText)
-                    HStack(spacing: 4) {
-                        Text("\(viewModel.completedTasksToday) of \(viewModel.totalTasksToday)")
-                            .font(.system(size: 17, weight: .semibold))
-                        Text("tasks completed")
-                            .font(.system(size: 17))
-                            .foregroundColor(.appTextSecondary)
+            HStack(alignment: .center, spacing: 16) {
+                // Day counter with calendar icon
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 28))
+                        .foregroundColor(.black)
+                    Text("Day \(currentDay)/\(viewModel.userData.planDuration)")
+                        .font(.custom("PlayfairDisplay-Regular", size: 34))
+                        .foregroundColor(.black)
+                }
+                
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color(UIColor.systemGray6))
+                            .frame(height: 8)
+                        
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.green)
+                            .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
+                                   height: 8)
                     }
                 }
-                Spacer()
+                .frame(height: 8)
+                .padding(.top, 8)  // Align with text
             }
             
-            progressBar(currentDay: currentDay)
-            
             if !viewModel.dailySummary.isEmpty {
-                Text(viewModel.dailySummary)
-                    .font(.system(size: 17))
-                    .foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .lineLimit(nil)
+                VStack(alignment: .leading, spacing: 8) {
+                    TypewriterText(viewModel.dailySummary)
+                        .foregroundColor(.black)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(nil)
+                    
+                    Rectangle()
+                        .fill(Color.black.opacity(0.1))
+                        .frame(height: 1)
+                }
             }
         }
         .padding(.horizontal)
-        .padding(.top, 10)
-        .frame(height: headerHeight)
+        .padding(.top, UIApplication.shared.windows.first?.safeAreaInsets.top ?? 47)
+        .padding(.bottom, 16)
         .background(Color.white)
     }
     
     @ViewBuilder
     private func progressBar(currentDay: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color(UIColor.systemGray6))
-                        .frame(height: 12)
-                    
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.green)
-                        .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
-                               height: 12)
-                }
+        GeometryReader { geometry in
+            ZStack(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(UIColor.systemGray6))
+                    .frame(height: 12)
+                
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.green)
+                    .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
+                           height: 12)
             }
-            .frame(height: 12)
         }
+        .frame(height: 12)
     }
 }
 
@@ -322,111 +279,131 @@ extension Color {
 
 struct TaskCard: View {
     let task: DailyTask
-    let isCompleted: Bool
     @EnvironmentObject var viewModel: AppViewModel
     @State private var offset: CGFloat = 0
     @State private var showConfetti = false
     
     var body: some View {
-        ZStack {
-            Button(action: {
-                if !isCompleted {
-                    withAnimation(.spring()) {
-                        offset = -200
-                        viewModel.toggleTask(task)
-                        showConfetti = true
-                        
-                        // Haptic feedback
-                        let generator = UINotificationFeedbackGenerator()
-                        generator.notificationOccurred(.success)
-                    }
+        Button(action: {
+            withAnimation(.spring()) {
+                viewModel.toggleTask(task)
+                if !task.isCompleted {
+                    showConfetti = true
+                    
+                    // Haptic feedback
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
                 }
-            }) {
-                HStack(alignment: .center, spacing: 16) {
-                    // Left side: Emoji and Time
-                    VStack(spacing: 2) {
-                        Text(task.emoji)
-                            .font(.system(size: 32))
-                            .frame(height: 32)
-                        
-                        Text(task.formattedTime)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.appTextSecondary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                        
-                        if let completionTime = task.formattedCompletionTime {
-                            Text(completionTime)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(task.completionStatus.color)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                    }
-                    .frame(width: 65)
+            }
+        }) {
+            VStack(spacing: 0) {
+                // Top section with emoji and task
+                HStack(spacing: 16) {
+                    Text(task.emoji)
+                        .font(.system(size: 32))
                     
-                    // Task description
                     Text(task.task)
-                        .font(.system(size: 17))
-                        .foregroundColor(task.isCompleted || isCompleted ? .appText : .appText)
+                        .font(.custom("PlayfairDisplay-Regular", size: 20))
+                        .foregroundColor(.black)
+                        .strikethrough(task.isCompleted, color: .black)
                         .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    // Checkbox
-                    Image(systemName: task.isCompleted || isCompleted ? "checkmark.circle.fill" : "circle")
-                        .foregroundColor(task.isCompleted || isCompleted ? .appAccent : .appTextSecondary)
+                    Spacer()
+                    
+                    Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "checkmark.circle")
                         .font(.system(size: 24))
+                        .foregroundColor(task.isCompleted ? .green : .gray.opacity(0.3))
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(12)
-            }
-            .offset(y: offset)
-            .buttonStyle(TaskCardButtonStyle())
-            
-            if showConfetti {
-                ConfettiView()
-                    .onAppear {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                            showConfetti = false
+                
+                // Divider line
+                if task.isCompleted {
+                    Rectangle()
+                        .fill(Color(UIColor.systemGray5))
+                        .frame(height: 1)
+                    
+                    // Bottom section with completion time
+                    if let completionTime = task.formattedCompletionTime {
+                        HStack {
+                            Text(completionTime)
+                                .font(.system(size: 17))
+                                .foregroundColor(.gray)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 12)
+                            Spacer()
                         }
                     }
+                }
             }
+            .background(Color.white)
+            .cornerRadius(12)
+            .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
+        }
+        .buttonStyle(TaskCardButtonStyle())
+        
+        if showConfetti {
+            ConfettiView()
+                .onAppear {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                        showConfetti = false
+                    }
+                }
         }
     }
 }
 
-struct UpcomingTaskCard: View {
+struct TaskHistory: Identifiable {
+    let id = UUID()
+    let date: Date
+    let tasks: [DailyTask]
+}
+
+struct TaskHistoryItemView: View {
     let task: DailyTask
     
     var body: some View {
-        HStack(alignment: .center, spacing: 16) {
-            // Left side: Emoji and Time
-            VStack(spacing: 2) {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
                 Text(task.emoji)
-                    .font(.system(size: 28))
-                    .frame(height: 28)
-                
-                Text(task.formattedTime)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.appTextSecondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .font(.system(size: 17))
+                Text(task.task)
+                    .font(.system(size: 17))
+                    .foregroundColor(.appText)
             }
-            .frame(width: 55)
             
-            // Task description
-            Text(task.task)
-                .font(.system(size: 15))
-                .foregroundColor(.appText)
-                .multilineTextAlignment(.leading)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if let completionTime = task.formattedCompletionTime {
+                HStack(spacing: 8) {
+                    Text("Completed: \(completionTime)")
+                        .font(.system(size: 15))
+                        .foregroundColor(task.completionStatus.color)
+                }
+            }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Color(UIColor.systemGray6))
-        .cornerRadius(12)
+        .padding(.vertical, 8)
+    }
+}
+
+struct TaskHistorySection: View {
+    let history: TaskHistory
+    
+    var body: some View {
+        Section {
+            ForEach(history.tasks) { task in
+                TaskHistoryItemView(task: task)
+            }
+        } header: {
+            Text(formatDate(history.date))
+                .font(.custom("PlayfairDisplay-Regular", size: 20))
+                .foregroundColor(.appText)
+                .textCase(nil)
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        return formatter.string(from: date)
     }
 }
 
@@ -441,39 +418,7 @@ struct TaskHistoryView: View {
                 
                 List {
                     ForEach(viewModel.taskHistory, id: \.date) { history in
-                        Section {
-                            ForEach(history.tasks) { task in
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 8) {
-                                        Text(task.emoji)
-                                            .font(.system(size: 17))
-                                        Text(task.task)
-                                            .font(.system(size: 17))
-                                            .foregroundColor(.appText)
-                                    }
-                                    
-                                    HStack(spacing: 8) {
-                                        Text(task.formattedTime)
-                                            .font(.system(size: 15))
-                                            .foregroundColor(.appTextSecondary)
-                                        
-                                        if let completionTime = task.formattedCompletionTime {
-                                            Text("•")
-                                                .foregroundColor(.appTextSecondary)
-                                            Text("Completed: \(completionTime)")
-                                                .font(.system(size: 15))
-                                                .foregroundColor(task.completionStatus.color)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 8)
-                            }
-                        } header: {
-                            Text(formatDate(history.date))
-                                .font(.custom("Baskerville-Bold", size: 20))
-                                .foregroundColor(.appText)
-                                .textCase(nil)
-                        }
+                        TaskHistorySection(history: history)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -484,12 +429,6 @@ struct TaskHistoryView: View {
             }
         }
         .preferredColorScheme(.light)
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        return formatter.string(from: date)
     }
 }
 

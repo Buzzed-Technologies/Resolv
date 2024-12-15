@@ -9,6 +9,10 @@ import SwiftUI
 
 @main
 struct YearSyncApp: App {
+    init() {
+        CustomFont.registerFonts()
+    }
+    
     @StateObject private var viewModel = AppViewModel()
     
     var body: some Scene {
@@ -31,10 +35,8 @@ struct ContentView: View {
                 GoalSelectionView()
             case .durationSelection:
                 DurationSelectionView()
-            case .personalInfo:
-                PersonalInfoView()
-            case .userPreferences:
-                UserPreferencesView()
+            case .subscriptions:
+                SubscriptionsView()
             case .planCreation:
                 PlanCreationView()
             case .dailyChecklist:
