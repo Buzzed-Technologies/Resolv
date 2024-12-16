@@ -14,13 +14,13 @@ struct PastChallengesView: View {
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 32) {
                 // Header
                 Text("Past Challenges")
-                    .font(.custom("PlayfairDisplay-Regular", size: 28))
+                    .font(.custom("PlayfairDisplay-Regular", size: 34))
                     .foregroundColor(.black)
                     .padding(.horizontal)
-                    .padding(.bottom, 4)
+                    .padding(.top, 20)
                 
                 if pastChallenges.isEmpty {
                     // Empty State
@@ -29,10 +29,10 @@ struct PastChallengesView: View {
                         
                         VStack(spacing: 8) {
                             Text("No Past Challenges Yet")
-                                .font(.custom("PlayfairDisplay-Bold", size: 20))
+                                .font(.custom("PlayfairDisplay-Bold", size: 24))
                                 .foregroundColor(.primary)
                             Text("Complete your first challenge to see it here!")
-                                .font(.custom("PlayfairDisplay-Regular", size: 17))
+                                .font(.custom("PlayfairDisplay-Regular", size: 18))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                         }
@@ -40,41 +40,37 @@ struct PastChallengesView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 60)
                 } else {
-                    // Challenges List
-                    VStack(spacing: 16) {
+                    // Journal-style entries
+                    VStack(alignment: .leading, spacing: 40) {
                         ForEach(pastChallenges) { challenge in
-                            ChallengeCardView(challenge: challenge)
+                            JournalEntryView(challenge: challenge)
                         }
                     }
                     .padding(.horizontal)
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.bottom, 40)
         }
+        .background(Color(UIColor.systemBackground))
         .navigationBarItems(
             trailing: Button("Done") {
                 dismiss()
             }
-            .font(.custom("PlayfairDisplay-Regular", size: 17))
+            .font(.custom("PlayfairDisplay-Regular", size: 18))
         )
     }
 }
 
-// Moved outside of PastChallengesView
-struct ChallengeCardView: View {
+struct JournalEntryView: View {
     let challenge: PastChallenge
     
-    init(challenge: PastChallenge) {
-        self.challenge = challenge
-    }
-    
-    private var dateFormatter: DateFormatter = {
+    var dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM d, yyyy"
         return formatter
     }()
     
-    private var completionColor: Color {
+    var completionColor: Color {
         let percentage = challenge.completionRate
         switch percentage {
         case 0.8...1.0: return .green
@@ -84,15 +80,15 @@ struct ChallengeCardView: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header with completion rate
-            HStack {
+        VStack(alignment: .leading, spacing: 24) {
+            // Date and Duration
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(dateFormatter.string(from: challenge.completedDate))
-                        .font(.custom("PlayfairDisplay-SemiBold", size: 17))
+                        .font(.custom("PlayfairDisplay-SemiBold", size: 22))
                         .foregroundColor(.primary)
-                    Text("\(challenge.duration) Day Challenge")
-                        .font(.custom("PlayfairDisplay-Regular", size: 15))
+                    Text("\(challenge.duration) Day Journey")
+                        .font(.custom("PlayfairDisplay-Regular", size: 17))
                         .foregroundColor(.secondary)
                 }
                 
@@ -102,51 +98,67 @@ struct ChallengeCardView: View {
                 ZStack {
                     Circle()
                         .stroke(Color(UIColor.systemGray5), lineWidth: 3)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 50, height: 50)
                     
                     Circle()
                         .trim(from: 0, to: challenge.completionRate)
                         .stroke(completionColor, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .frame(width: 44, height: 44)
+                        .frame(width: 50, height: 50)
                         .rotationEffect(.degrees(-90))
                     
                     Text("\(Int(challenge.completionRate * 100))%")
-                        .font(.custom("PlayfairDisplay-Medium", size: 12))
+                        .font(.custom("PlayfairDisplay-Medium", size: 14))
                         .foregroundColor(completionColor)
                 }
             }
             
-            // Goals
+            // Goals Section
             if !challenge.goals.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Goals")
-                        .font(.custom("PlayfairDisplay-Regular", size: 15))
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Goals Pursued")
+                        .font(.custom("PlayfairDisplay-Regular", size: 18))
                         .foregroundColor(.secondary)
                     
-                    LazyVGrid(columns: [
-                        GridItem(.adaptive(minimum: 80))
-                    ], spacing: 8) {
+                    VStack(alignment: .leading, spacing: 12) {
                         ForEach(challenge.goals) { goal in
-                            HStack(spacing: 6) {
+                            HStack(spacing: 12) {
                                 Text(goal.emoji)
-                                    .font(.system(size: 16))
+                                    .font(.system(size: 20))
                                 Text(goal.title)
-                                    .font(.custom("PlayfairDisplay-Regular", size: 14))
+                                    .font(.custom("PlayfairDisplay-Regular", size: 17))
                                     .foregroundColor(.primary)
-                                    .lineLimit(1)
                             }
-                            .padding(.vertical, 6)
-                            .padding(.horizontal, 10)
-                            .background(Color(UIColor.systemGray6))
-                            .cornerRadius(8)
+                            .padding(.vertical, 8)
                         }
                     }
                 }
             }
+            
+            // Journal Entries Preview
+            if !challenge.journalEntries.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Journal Reflections")
+                        .font(.custom("PlayfairDisplay-Regular", size: 18))
+                        .foregroundColor(.secondary)
+                    
+                    Text(challenge.journalEntries.first?.content ?? "")
+                        .font(.custom("PlayfairDisplay-Regular", size: 16))
+                        .foregroundColor(.primary)
+                        .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                }
+            }
         }
-        .padding(16)
-        .background(Color(UIColor.systemGray6).opacity(0.5))
-        .cornerRadius(16)
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20)
+                .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+        )
     }
 }
 

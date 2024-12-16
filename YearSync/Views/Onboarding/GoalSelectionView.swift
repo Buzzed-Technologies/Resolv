@@ -150,7 +150,7 @@ struct GoalSelectionView: View {
                             .font(.custom("PlayfairDisplay-Regular", size: 16))
                             .frame(height: 100)
                             .scrollContentBackground(.hidden)
-                            .background(Color.white)
+                            .background(Color(.systemGray6))
                             .focused($isTextFieldFocused)
                     }
                     .padding(12)
@@ -175,7 +175,7 @@ struct GoalSelectionView: View {
                                                 .foregroundColor(accentColor)
                                                 .padding(.vertical, 8)
                                                 .padding(.horizontal, 16)
-                                                .background(Color.white)
+                                                .background(Color(.systemGray6))
                                                 .cornerRadius(8)
                                         }
                                         .padding(8)

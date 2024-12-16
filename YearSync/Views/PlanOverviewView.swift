@@ -160,7 +160,15 @@ struct PlanOverviewView: View {
     @State private var showingResetAlert = false
     @State private var showingPersonalDetails = false
     @State private var showingPastChallenges = false
-    @State private var summaryText: String = "Loading..."
+    @State private var summaryText: String = ""
+    @State private var isLoadingSummary: Bool = true
+    @State private var summaryOpacity: Double = 0
+    @State private var loadingDots = ""
+    @State private var loadingTimer: Timer?
+    
+    // Add cache-related properties
+    private let cacheKey = "dailySummaryCacheKey"
+    private let cacheDuration: TimeInterval = 10800 // 3 hours in seconds
     
     private var progressPercentage: Double {
         guard let currentDay = userData.currentDay else { return 0 }
@@ -172,23 +180,44 @@ struct PlanOverviewView: View {
         let targetDate = Calendar.current.date(byAdding: .day, value: userData.planDuration, to: startDate)!
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM d"
-        return formatter.string(from: targetDate) + "rd"
+        let day = Calendar.current.component(.day, from: targetDate)
+        
+        let suffix: String
+        switch day {
+        case 1, 21, 31: suffix = "st"
+        case 2, 22: suffix = "nd"
+        case 3, 23: suffix = "rd"
+        default: suffix = "th"
+        }
+        
+        return formatter.string(from: targetDate) + suffix
     }
     
     private func loadDailySummary() {
         guard let currentDay = userData.currentDay else {
             summaryText = ""
+            isLoadingSummary = false
             return
         }
         
-        // Calculate previous day completion rate
+        // Check cache first
+        if let cachedSummary = getCachedSummary() {
+            withAnimation {
+                self.isLoadingSummary = false
+                self.summaryText = cachedSummary
+                withAnimation(.easeIn(duration: 0.5)) {
+                    self.summaryOpacity = 1
+                }
+            }
+            return
+        }
+        
         let previousDayCompletion: Double? = {
             guard let lastDayTasks = userData.dailyTaskHistory.last?.tasks else { return nil }
             let completedCount = lastDayTasks.filter { $0.isCompleted }.count
             return Double(completedCount) / Double(lastDayTasks.count)
         }()
         
-        // Generate summary using OpenAI service
         OpenAIService.shared.generateDailySummary(
             day: currentDay,
             totalDays: userData.planDuration,
@@ -198,9 +227,55 @@ struct PlanOverviewView: View {
         ) { summary in
             DispatchQueue.main.async {
                 if let summary = summary {
+                    withAnimation {
+                        self.isLoadingSummary = false
+                    }
                     self.summaryText = summary
+                    self.cacheSummary(summary)
+                    
+                    withAnimation(.easeIn(duration: 0.5)) {
+                        self.summaryOpacity = 1
+                    }
                 } else {
+                    withAnimation {
+                        self.isLoadingSummary = false
+                    }
                     self.summaryText = "Unable to generate summary"
+                    self.summaryOpacity = 1
+                }
+            }
+        }
+    }
+    
+    // Add caching methods
+    private func cacheSummary(_ summary: String) {
+        let cache = [
+            "summary": summary,
+            "timestamp": Date().timeIntervalSince1970
+        ] as [String: Any]
+        UserDefaults.standard.set(cache, forKey: cacheKey)
+    }
+    
+    private func getCachedSummary() -> String? {
+        guard let cache = UserDefaults.standard.dictionary(forKey: cacheKey),
+              let summary = cache["summary"] as? String,
+              let timestamp = cache["timestamp"] as? TimeInterval else {
+            return nil
+        }
+        
+        let age = Date().timeIntervalSince1970 - timestamp
+        return age < cacheDuration ? summary : nil
+    }
+    
+    private func startLoadingAnimation() {
+        loadingDots = ""
+        loadingTimer?.invalidate()
+        loadingTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { _ in
+            withAnimation {
+                if loadingDots.count < 3 {
+                    loadingDots += "."
+                } else {
+                    loadingDots = ""
                 }
             }
         }
@@ -236,13 +311,36 @@ struct PlanOverviewView: View {
                     .frame(height: 8)
                     .padding(.vertical, 16)
                     
-                    Text(summaryText)
-                        .font(.custom("PlayfairDisplay-Regular", size: 17))
-                        .foregroundColor(.primary)
-                        .padding(.bottom, 24)
-                        .onAppear {
-                            loadDailySummary()
+                    // Improved Summary Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        if isLoadingSummary {
+                            Text("Analyzing your progress\(loadingDots)")
+                                .font(.custom("PlayfairDisplay-Regular", size: 17))
+                                .foregroundColor(.secondary)
+                                .opacity(0.8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .onAppear {
+                                    startLoadingAnimation()
+                                }
+                                .onDisappear {
+                                    loadingTimer?.invalidate()
+                                    loadingTimer = nil
+                                }
+                        } else {
+                            Text(summaryText)
+                                .font(.custom("PlayfairDisplay-Regular", size: 17))
+                                .foregroundColor(.primary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .opacity(summaryOpacity)
+                                .animation(.easeIn(duration: 0.5), value: summaryOpacity)
                         }
+                    }
+                    .padding(.bottom, 24)
+                    .onAppear {
+                        isLoadingSummary = true
+                        summaryOpacity = 0
+                        loadDailySummary()
+                    }
                 }
                 .padding(.horizontal, 24)
                 
@@ -262,7 +360,9 @@ struct PlanOverviewView: View {
                     
                     Button(action: { showingPersonalDetails = true }) {
                         MenuRowView(
-                            title: "Personal Details"
+                            title: "Personal Details",
+                            subtitle: "Update your profile, preferences, and personal goals",
+                            subtitleAlignment: .leading
                         )
                     }
                     
@@ -271,7 +371,8 @@ struct PlanOverviewView: View {
                     Button(action: { showingResetAlert = true }) {
                         MenuRowView(
                             title: "Start from Scratch",
-                            subtitle: "Goals changed? Want to start over?"
+                            subtitle: "Goals changed? Want to start over? Reset your journey here",
+                            subtitleAlignment: .leading
                         )
                     }
                     
@@ -283,19 +384,29 @@ struct PlanOverviewView: View {
                     Button("Privacy Policy") {
                         // Handle privacy policy action
                     }
-                    .font(.custom("PlayfairDisplay-Regular", size: 17))
+                    .font(.system(size: 17))
                     .foregroundColor(.secondary)
                     
                     Button("Terms & Conditions") {
                         // Handle terms action
                     }
-                    .font(.custom("PlayfairDisplay-Regular", size: 17))
+                    .font(.system(size: 17))
                     .foregroundColor(.secondary)
                     
-                    Text("Made with ❤️ by the Resolv team")
-                        .font(.custom("PlayfairDisplay-Regular", size: 15))
-                        .foregroundColor(.secondary)
-                        .padding(.top, 8)
+                    VStack(spacing: 4) {
+                        Text("Made with ❤️ by the Resolv team")
+                            .font(.system(size: 15))
+                            .foregroundColor(.secondary)
+                        
+                        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String,
+                           let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String {
+                            Text("Version \(version) (\(build))")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                                .opacity(0.7)
+                        }
+                    }
+                    .padding(.top, 8)
                 }
                 .padding(.vertical, 32)
             }
@@ -321,7 +432,6 @@ struct PlanOverviewView: View {
     
     private func archiveCurrentPlan() {
         // The archiving is now handled in userData.resetPlan()
-        // which creates and stores a PastChallenge before clearing the current plan
     }
 }
 
@@ -361,16 +471,15 @@ struct EditGoalView: View {
     @Binding var userData: UserData
     let goal: Goal
     @Environment(\.dismiss) var dismiss
-    @State private var editedPlans: [String]
     @State private var showingDeleteAlert = false
-    @State private var editingPlanIndex: Int?
-    @State private var editedPlanText: String = ""
+    @State private var editedStrategy: String
+    @State private var isEditing = false
     @State private var isAnimating = false
     
     init(userData: Binding<UserData>, goal: Goal) {
         self._userData = userData
         self.goal = goal
-        self._editedPlans = State(initialValue: goal.subPlans)
+        self._editedStrategy = State(initialValue: goal.strategy)
     }
     
     var body: some View {
@@ -386,100 +495,79 @@ struct EditGoalView: View {
                                 .font(.custom("PlayfairDisplay-Bold", size: 34))
                                 .foregroundColor(.appText)
                         }
-                        Text("Edit your plan to better align with your progress and goals")
+                        Text("Review and edit your goal strategy")
                             .font(.custom("PlayfairDisplay-Regular", size: 17))
                             .foregroundColor(.appTextSecondary)
                     }
                     .padding(.horizontal)
                     
-                    // Plan Items
-                    VStack(alignment: .leading, spacing: 16) {
-                        ForEach(Array(editedPlans.enumerated()), id: \.element) { index, plan in
-                            if editingPlanIndex == index {
-                                // Edit Mode
-                                VStack(alignment: .leading, spacing: 12) {
-                                    TextEditor(text: $editedPlanText)
-                                        .font(.custom("PlayfairDisplay-Regular", size: 17))
-                                        .foregroundColor(.appText)
-                                        .frame(minHeight: 100)
-                                        .padding(8)
-                                        .background(Color(UIColor.systemGray6))
-                                        .scrollContentBackground(.hidden)
-                                        .cornerRadius(8)
-                                        .opacity(isAnimating ? 1 : 0)
-                                        .onAppear {
-                                            withAnimation(.easeIn(duration: 0.2)) {
-                                                isAnimating = true
-                                            }
-                                        }
-                                    
-                                    HStack {
-                                        Spacer()
-                                        Button("Cancel") {
-                                            withAnimation(.easeOut(duration: 0.2)) {
-                                                isAnimating = false
-                                                editingPlanIndex = nil
-                                            }
-                                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                        }
-                                        .foregroundColor(.appTextSecondary)
-                                        .padding(.trailing, 16)
-                                        
-                                        Button("Save") {
-                                            if !editedPlanText.isEmpty {
-                                                withAnimation(.easeOut(duration: 0.2)) {
-                                                    editedPlans[index] = editedPlanText
-                                                    isAnimating = false
-                                                    editingPlanIndex = nil
-                                                }
-                                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                            }
-                                        }
+                    // Strategy Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("Strategy")
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(.primary)
+                            
+                            Spacer()
+                            
+                            if !isEditing {
+                                Button(action: {
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                        isEditing = true
+                                    }
+                                }) {
+                                    Image(systemName: "pencil")
                                         .foregroundColor(.appAccent)
-                                    }
                                 }
-                                .padding(16)
-                                .background(Color(UIColor.systemGray6))
-                                .cornerRadius(12)
-                            } else {
-                                // View Mode
-                                HStack(alignment: .top) {
-                                    Text("\(index + 1).")
-                                        .font(.custom("PlayfairDisplay-SemiBold", size: 17))
-                                        .foregroundColor(.appTextSecondary)
-                                        .frame(width: 30, alignment: .leading)
-                                    
-                                    Text(plan)
-                                        .font(.custom("PlayfairDisplay-Regular", size: 17))
-                                        .foregroundColor(.appText)
-                                    
-                                    Spacer()
-                                    
-                                    Button(action: {
-                                        editedPlanText = plan
-                                        isAnimating = false
-                                        editingPlanIndex = index
-                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    }) {
-                                        Image(systemName: "pencil")
-                                            .foregroundColor(.appAccent)
-                                    }
-                                }
-                                .padding(16)
-                                .background(Color(UIColor.systemGray6))
-                                .cornerRadius(12)
-                                .transition(.opacity)
                             }
                         }
-                    }
-                    .padding(.horizontal)
-                    .animation(.easeInOut(duration: 0.2), value: editingPlanIndex)
-                    
-                    // Save Button
-                    ModernButton(title: "Save Changes") {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        saveChanges()
-                        dismiss()
+                        
+                        if isEditing {
+                            VStack(spacing: 16) {
+                                TextEditor(text: $editedStrategy)
+                                    .font(.custom("PlayfairDisplay-Regular", size: 17))
+                                    .foregroundColor(.appText)
+                                    .frame(minHeight: 300)
+                                    .padding(16)
+                                    .background(Color(UIColor.systemGray6))
+                                    .scrollContentBackground(.hidden)
+                                    .cornerRadius(12)
+                                    .opacity(isAnimating ? 1 : 0)
+                                    .onAppear {
+                                        withAnimation(.easeIn(duration: 0.2)) {
+                                            isAnimating = true
+                                        }
+                                    }
+                                
+                                HStack {
+                                    Spacer()
+                                    Button("Cancel") {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            isEditing = false
+                                            editedStrategy = goal.strategy
+                                        }
+                                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    }
+                                    .foregroundColor(.appTextSecondary)
+                                    .padding(.trailing, 16)
+                                    
+                                    Button("Save") {
+                                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                            isEditing = false
+                                            saveChanges()
+                                        }
+                                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                    }
+                                    .foregroundColor(.appAccent)
+                                }
+                                .font(.system(size: 17, weight: .medium))
+                            }
+                        } else {
+                            Text(editedStrategy)
+                                .font(.custom("PlayfairDisplay-Regular", size: 17))
+                                .foregroundColor(.appTextSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .padding(.horizontal)
                     
@@ -558,7 +646,7 @@ struct EditGoalView: View {
     private func saveChanges() {
         if let index = userData.goals.firstIndex(where: { $0.id == goal.id }) {
             var updatedGoal = goal
-            updatedGoal.subPlans = editedPlans
+            updatedGoal.strategy = editedStrategy
             userData.goals[index] = updatedGoal
         }
     }

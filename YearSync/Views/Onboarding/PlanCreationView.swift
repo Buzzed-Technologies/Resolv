@@ -1,13 +1,67 @@
 import SwiftUI
 import Foundation
 
+// First, let's create a haptic feedback manager
+class HapticManager {
+    static let shared = HapticManager()
+    
+    private let impactFeedbackGenerator = UIImpactFeedbackGenerator(style: .soft)
+    
+    func playBreathingHaptic(intensity: Double) {
+        impactFeedbackGenerator.prepare()
+        impactFeedbackGenerator.impactOccurred(intensity: intensity)
+    }
+}
+
 struct LoadingView: View {
     let message: String
+    @State private var overallScale: CGFloat = 1.0
+    @State private var breathingScale: CGFloat = 1.0
+    @State private var breathingOpacity: Double = 0.6
+    @State private var hapticTimer: Timer?
     
     var body: some View {
         VStack(spacing: 32) {
-            AnimatedGradientCircle()
-                .frame(width: 120, height: 120)
+            AnimatedGradientCircle(
+                size: 120,
+                primaryColor: .green
+            )
+            .scaleEffect(breathingScale)
+            .scaleEffect(overallScale)
+            .opacity(breathingOpacity)
+            .onAppear {
+                // Start the breathing animation
+                withAnimation(
+                    .easeInOut(duration: 4.0)
+                    .repeatForever(autoreverses: true)
+                ) {
+                    breathingScale = 1.3
+                    breathingOpacity = 1.0
+                }
+                
+                // Start the overall growth
+                withAnimation(
+                    .easeInOut(duration: 20.0)
+                ) {
+                    overallScale = 1.5
+                }
+                
+                // Start haptic feedback cycle
+                hapticTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+                    let progress = Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 4.0) / 4.0
+                    let intensity = sin(progress * .pi * 2) * 0.5 + 0.5
+                    HapticManager.shared.playBreathingHaptic(intensity: intensity)
+                }
+                
+                if let timer = hapticTimer {
+                    RunLoop.current.add(timer, forMode: .common)
+                }
+            }
+            .onDisappear {
+                // Clean up timer when view disappears
+                hapticTimer?.invalidate()
+                hapticTimer = nil
+            }
             
             Text(message)
                 .font(.system(size: 17))
@@ -71,22 +125,17 @@ struct PlanCreationView: View {
                 }
                 
                 // Floating button overlay
-                VStack {
-                    Spacer()
-                    ModernButton(title: "Let's start") {
-                        withAnimation {
+                .overlay(
+                    VStack {
+                        Spacer()
+                        ModernButton(title: "Let's start") {
                             viewModel.moveToNextScreen()
                         }
+                        .padding(.horizontal, 32)
+                        .padding(.bottom, 32)
                     }
-                    .padding(.horizontal, 32)
-                    .padding(.bottom, 16)
-                    .background(
-                        Rectangle()
-                            .fill(Color(.systemBackground))
-                            .shadow(color: .black.opacity(0.1), radius: 10, x: 0, y: -5)
-                            .edgesIgnoringSafeArea(.bottom)
-                    )
-                }
+                )
+                .ignoresSafeArea()
             } else {
                 Text("Goals array is empty")
                     .foregroundColor(.red)
@@ -221,4 +270,4 @@ struct GoalPlanCard: View {
             isVisible = false
         }
     }
-} 
+}

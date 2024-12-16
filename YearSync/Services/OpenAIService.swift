@@ -64,9 +64,9 @@ class OpenAIService {
     
     func generateDailyTasks(for goals: [Goal], day: Int, previousTasks: [DailyTask], wakeTime: String, sleepTime: String, completion: @escaping (String?) -> Void) {
         var prompt = """
-        Create a set of arround 12 daily habit-building tasks and checkpoints for Day \(day) that will help build lasting habits for each goal.
-        Distribute the tasks evenly across goals, ensuring each goal has at least 2-3 tasks.
-
+        Create a set of daily habit-building tasks and checkpoints for Day \(day) that will help build lasting habits for each goal.
+        Distribute the tasks evenly across goals, ensuring each goal has at least 2-3 meaningful tasks.
+        
         Goals and Progress:
         """
         
@@ -94,7 +94,7 @@ class OpenAIService {
         prompt += """
         \n
         Task Creation Guidelines:
-        1. Create arround 12 specific, actionable tasks across all goals (use on emojie for each task no blank tasks)
+        1. Create 10-15 specific, actionable tasks distributed across all goals (use one emoji for each task)
         2. Focus on building lasting habits
         3. Make each task clear and measurable
         4. Progressive Difficulty: Day \(day) tasks should be \(calculateProgressiveIntensity(day: day))% more challenging
@@ -102,8 +102,10 @@ class OpenAIService {
         6. Include preparation steps when needed
         7. Add specific metrics or targets when relevant
         8. Keep language motivating and supportive
-        9. Ensure even distribution across goals
-
+        9. Ensure even distribution across goals (at least 2-3 tasks per goal)
+        10. NEVER create generic or placeholder tasks
+        11. Each task should directly contribute to the goal's strategy
+        
         Example tasks:
         - 🚰 Fill your water bottle to the 32oz mark and keep it visible on your desk
         - 🏃‍♂️ Complete a 20-minute run at a comfortable pace
@@ -340,28 +342,47 @@ class OpenAIService {
     }
     
     func generateDailySummary(day: Int, totalDays: Int, name: String?, goals: [Goal], previousDayCompletion: Double?, completion: @escaping (String?) -> Void) {
-        var prompt = "Create a short, motivational message for \(name ?? "the user")'s habit-building journey.\n\n"
-        prompt += "Context:\n"
-        prompt += "- Day \(day) of \(totalDays)\n"
-        prompt += "- Goals: \(goals.map { $0.title }.joined(separator: ", "))\n"
+        var prompt = """
+        Create a personalized progress summary for \(name ?? "the user")'s habit-building journey.
+        
+        Current Status:
+        - Day \(day) of \(totalDays) (\(Int(Double(day)/Double(totalDays) * 100))% complete)
+        - Goals: \(goals.map { $0.title }.joined(separator: ", "))
+        """
         
         if let previousCompletion = previousDayCompletion {
-            prompt += "- Previous day completion rate: \(Int(previousCompletion * 100))%\n"
+            let completionPercentage = Int(previousCompletion * 100)
+            prompt += "\n- Recent task completion rate: \(completionPercentage)%"
+            
+            // Add context about performance
+            if completionPercentage >= 90 {
+                prompt += "\n- Outstanding performance"
+            } else if completionPercentage >= 70 {
+                prompt += "\n- Strong performance"
+            } else if completionPercentage >= 50 {
+                prompt += "\n- Steady progress"
+            } else {
+                prompt += "\n- Building momentum"
+            }
         }
         
-        prompt += "\nThe message should:\n"
-        prompt += "1. Be short and direct (max 1-2 sentences)\n"
-        prompt += "2. Focus on progress and momentum\n"
-        prompt += "3. Vary based on the stage of the journey (beginning/middle/end)\n"
-        prompt += "4. Acknowledge effort and encourage consistency\n"
-        prompt += "5. Be natural and conversational\n"
-        prompt += "6. Never use quotes or emojis\n\n"
-        prompt += "Examples of good messages:\n"
-        prompt += "- Starting strong today with small steps toward big changes.\n"
-        prompt += "- Each completed task is building your foundation for success.\n"
-        prompt += "- Halfway there and getting stronger every day.\n"
-        prompt += "- Making progress one task at a time, stay focused.\n"
-        prompt += "- Almost at the finish line, keep up that momentum.\n"
+        prompt += """
+        
+        Guidelines for the summary:
+        1. Mention both the day number and overall progress
+        2. Reference their actual task completion rate if available
+        3. Add encouraging context about their journey stage:
+           - Days 1-7: Focus on building momentum
+           - Days 8-14: Emphasize habit formation
+           - Days 15+: Highlight transformation and consistency
+        4. Keep it personal and motivating
+        5. Maximum 2 sentences
+        
+        Example summaries:
+        - Day 3 and you've completed 92% of your tasks - this strong start sets the tone for your entire journey!
+        - Halfway through and maintaining an 85% completion rate, you're proving these habits are becoming second nature.
+        - Twenty days in with consistent 90%+ completion - you're not just building habits, you're transforming your life.
+        """
         
         var request = URLRequest(url: URL(string: apiURL)!)
         request.httpMethod = "POST"
@@ -372,12 +393,14 @@ class OpenAIService {
             "model": "gpt-4",
             "messages": [
                 ["role": "system", "content": """
-                You are a supportive coach who focuses on progress and consistency.
-                Write in a natural, conversational tone.
-                Keep messages short and impactful.
-                Never use quotes, emojis, or pop culture references.
-                Focus on building habits and maintaining momentum.
-                Adapt your tone based on the user's progress and current day.
+                You are a supportive habit coach who focuses on concrete progress metrics.
+                Create summaries that:
+                - Reference specific numbers (days, completion rates)
+                - Acknowledge current stage of journey
+                - Maintain an encouraging but realistic tone
+                - Keep to 1-2 impactful sentences
+                Never use quotes or emojis.
+                Respond with just the summary text, no formatting.
                 """],
                 ["role": "user", "content": prompt]
             ],

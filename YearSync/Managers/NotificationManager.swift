@@ -90,8 +90,13 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let content = UNMutableNotificationContent()
         content.title = title
         
-        // Get current tasks progress
-        let currentTasks = userData.dailyTaskHistory.last?.tasks ?? []
+        // Get today's tasks by finding the matching day in history
+        let calendar = Calendar.current
+        let today = Date()
+        let currentTasks = userData.dailyTaskHistory
+            .first(where: { calendar.isDate($0.date, inSameDayAs: today) })?
+            .tasks ?? []
+        
         let completedTasks = currentTasks.filter { $0.isCompleted }
         let completedCount = completedTasks.count
         let totalTasks = currentTasks.count
@@ -101,17 +106,31 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
         let message: String
         switch notificationType {
         case .morning:
-            message = """
-                Welcome to a new day! 🌅
-                You have \(totalTasks) tasks planned for today.
-                Let's make it count! 💪
-                """
+            if totalTasks == 0 {
+                message = """
+                    Welcome to a new day! 🌅
+                    No tasks have been set for today yet.
+                    Let's get started by planning your day! 📝
+                    """
+            } else {
+                message = """
+                    Welcome to a new day! 🌅
+                    You have \(totalTasks) tasks planned for today.
+                    Let's make it count! 💪
+                    """
+            }
             
         case .progress:
-            if completedCount == 0 && !currentTasks.isEmpty {
+            if totalTasks == 0 {
+                message = """
+                    No tasks have been set for today yet.
+                    Take a moment to plan your day! 📝
+                    """
+            } else if completedCount == 0 {
                 message = """
                     You haven't made any progress yet today.
                     Time to get started! 💪
+                    You have \(totalTasks) tasks waiting.
                     """
             } else {
                 message = """
@@ -123,7 +142,12 @@ class NotificationManager: NSObject, UNUserNotificationCenterDelegate {
             }
             
         case .evening:
-            if completionPercentage == 100 {
+            if totalTasks == 0 {
+                message = """
+                    Today was a quiet day with no planned tasks.
+                    Tomorrow is a new opportunity to set and achieve your goals! 🌅
+                    """
+            } else if completionPercentage == 100 {
                 message = """
                     🎉 Incredible job today!
                     You completed all \(totalTasks) tasks.

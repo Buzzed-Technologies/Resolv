@@ -66,7 +66,14 @@ struct UserData: Codable {
     }
     
     private func saveState() {
-        UserDefaultsHelper.shared.saveUserData(self)
+        // Ensure we're on the main thread for UserDefaults
+        if Thread.isMainThread {
+            UserDefaultsHelper.shared.saveUserData(self)
+        } else {
+            DispatchQueue.main.async {
+                UserDefaultsHelper.shared.saveUserData(self)
+            }
+        }
     }
     
     var currentDay: Int? {
@@ -161,9 +168,16 @@ struct UserData: Codable {
     mutating func applyWeeklySummary(_ summary: WeeklySummary, entryIndices: [Int]) {
         weeklySummaries.append(summary)
         for index in entryIndices {
-            journalEntries[index].isVisible = true
+            if index < journalEntries.count {
+                journalEntries[index].isVisible = true
+            }
         }
         saveState()
+        
+        // Notify UI of changes
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(name: .init("userDataUpdated"), object: nil)
+        }
     }
     
     func getCurrentWeekEntries() -> [JournalEntry] {

@@ -13,106 +13,156 @@ struct PersonalDetailsView: View {
     @State private var sleepTime: Date = Calendar.current.startOfDay(for: Date())
     @State private var selectedGoal: Goal?
     @State private var showingGoalEditor = false
+    @State private var notificationPreference: NotificationPreference = .occasionally
+    
+    // Add this property to track keyboard focus
+    @FocusState private var focusedField: Bool
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                Text("Personal Details")
-                    .font(.custom("PlayfairDisplay-Regular", size: 28))
-                    .foregroundColor(.black)
-                    .padding(.horizontal)
-                    .padding(.bottom, 4)
-                
-                // Main Content
-                Group {
-                    // Personal Information Section
-                    SectionView(title: "") {
-                        VStack(spacing: 16) {
-                            // Name and Age in one row
-                            HStack(spacing: 12) {
-                                CompactTextField(title: "Name", text: $name, keyboardType: .default)
-                                CompactTextField(title: "Age", text: $age, keyboardType: .numberPad)
+        ZStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    // Header
+                    Text("Personal Details")
+                        .font(.custom("PlayfairDisplay-Bold", size: 32))
+                        .foregroundColor(.black)
+                        .padding(.horizontal)
+                    
+                    // Main Content
+                    VStack(alignment: .leading, spacing: 40) {
+                        // Personal Information Section
+                        VStack(alignment: .leading, spacing: 24) {
+                            Text("About You")
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(.black)
+                            
+                            // Name and Age
+                            HStack(spacing: 20) {
+                                JournalTextField(title: "Name", text: $name, keyboardType: .default)
+                                JournalTextField(title: "Age", text: $age, keyboardType: .numberPad)
                                     .frame(width: 100)
                             }
                             
-                            // Height and Weight in one row
-                            HStack(spacing: 12) {
-                                // Height Fields
-                                VStack(alignment: .leading, spacing: 6) {
+                            // Height and Weight
+                            HStack(spacing: 20) {
+                                VStack(alignment: .leading, spacing: 8) {
                                     Text("Height")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    HStack(spacing: 8) {
-                                        CompactNumberField(text: $heightFeet, unit: "ft", width: 70)
-                                        CompactNumberField(text: $heightInches, unit: "in", width: 70)
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                // Weight Field
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Weight")
-                                        .font(.subheadline)
-                                        .foregroundColor(.secondary)
-                                    CompactNumberField(text: $weight, unit: "lbs", width: 100)
-                                }
-                            }
-                        }
-                    }
-                    
-                    // Daily Schedule Section
-                    SectionView(title: "Daily Schedule") {
-                        VStack(spacing: 16) {
-                            CompactTimePicker(title: "Wake Time", selection: $wakeTime)
-                            CompactTimePicker(title: "Sleep Time", selection: $sleepTime)
-                        }
-                    }
-                    
-                    // Current Goals Section
-                    SectionView(title: "Current Goals") {
-                        VStack(spacing: 12) {
-                            ForEach(userData.goals) { goal in
-                                Button(action: {
-                                    selectedGoal = goal
-                                    showingGoalEditor = true
-                                }) {
+                                        .font(.custom("PlayfairDisplay-Regular", size: 16))
+                                        .foregroundColor(.black.opacity(0.6))
                                     HStack(spacing: 12) {
-                                        Text(goal.emoji)
-                                            .font(.system(size: 22))
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(goal.title)
-                                                .font(.system(size: 17, weight: .medium))
-                                                .foregroundColor(.primary)
-                                            Text("\(goal.subPlans.count) steps")
-                                                .font(.system(size: 13))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .foregroundColor(.green)
-                                            .font(.system(size: 14, weight: .medium))
+                                        JournalNumberField(text: $heightFeet, unit: "ft", width: 70)
+                                        JournalNumberField(text: $heightInches, unit: "in", width: 70)
                                     }
-                                    .padding(.vertical, 12)
-                                    .padding(.horizontal, 14)
-                                    .background(Color(UIColor.systemGray6))
-                                    .cornerRadius(10)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Weight")
+                                        .font(.custom("PlayfairDisplay-Regular", size: 16))
+                                        .foregroundColor(.black.opacity(0.6))
+                                    JournalNumberField(text: $weight, unit: "lbs", width: 100)
+                                }
+                            }
+                        }
+                        
+                        // Daily Schedule Section
+                        VStack(alignment: .leading, spacing: 24) {
+                            Text("Daily Rhythm")
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(.black)
+                            
+                            VStack(spacing: 20) {
+                                JournalTimePicker(title: "Wake Time", selection: $wakeTime)
+                                JournalTimePicker(title: "Sleep Time", selection: $sleepTime)
+                            }
+                        }
+                        
+                        // Notification Settings
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Reminders")
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(.black)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("How often would you like to be reminded?")
+                                    .font(.custom("PlayfairDisplay-Regular", size: 16))
+                                    .foregroundColor(.black.opacity(0.6))
+                                
+                                HStack(spacing: 16) {
+                                    ForEach(NotificationPreference.allCases, id: \.self) { preference in
+                                        Button(action: {
+                                            notificationPreference = preference
+                                        }) {
+                                            Text(preference.rawValue)
+                                                .font(.custom("PlayfairDisplay-Regular", size: 16))
+                                                .foregroundColor(notificationPreference == preference ? .black : .black.opacity(0.6))
+                                                .padding(.bottom, 4)
+                                                .overlay(
+                                                    Rectangle()
+                                                        .frame(height: 1)
+                                                        .foregroundColor(notificationPreference == preference ? .black : .clear),
+                                                    alignment: .bottom
+                                                )
+                                        }
+                                    }
+                                }
+                                .padding(.top, 8)
+                            }
+                        }
+                        
+                        // Goals Section
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("Your Goals")
+                                .font(.custom("PlayfairDisplay-Regular", size: 24))
+                                .foregroundColor(.black)
+                            
+                            VStack(spacing: 12) {
+                                ForEach(userData.goals) { goal in
+                                    Button(action: {
+                                        selectedGoal = goal
+                                        showingGoalEditor = true
+                                    }) {
+                                        HStack(spacing: 12) {
+                                            Text(goal.emoji)
+                                                .font(.system(size: 24))
+                                            VStack(alignment: .leading, spacing: 4) {
+                                                Text(goal.title)
+                                                    .font(.custom("PlayfairDisplay-Regular", size: 18))
+                                                    .foregroundColor(.black)
+                                                Text("\(goal.subPlans.count) steps")
+                                                    .font(.custom("PlayfairDisplay-Regular", size: 14))
+                                                    .foregroundColor(.black.opacity(0.6))
+                                            }
+                                            Spacer()
+                                            Image(systemName: "chevron.right")
+                                                .foregroundColor(.black.opacity(0.4))
+                                                .font(.system(size: 14, weight: .medium))
+                                        }
+                                        .padding(.vertical, 12)
+                                    }
+                                    Divider()
                                 }
                             }
                         }
                     }
-                    
-                    // Save Button
-                    ModernButton(title: "Save Changes") {
-                        saveChanges()
-                        dismiss()
-                    }
-                    .padding(.top, 20)
+                    .padding(.horizontal)
                 }
-                .padding(.horizontal)
+                .padding(.vertical, 20)
+                .padding(.bottom, 80)
             }
-            .padding(.vertical, 20)
+            .onTapGesture {
+                focusedField = false // Dismiss keyboard on tap
+            }
+            
+            // Floating button
+            VStack {
+                Spacer()
+                ModernButton(title: "Save Changes") {
+                    saveChanges()
+                    dismiss()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            }
         }
         .navigationBarItems(
             leading: Button("Cancel") {
@@ -132,6 +182,7 @@ struct PersonalDetailsView: View {
     private func loadUserData() {
         name = userData.name ?? ""
         age = userData.age.map { String($0) } ?? ""
+        notificationPreference = userData.notificationPreference
         
         if let heightInCm = userData.height {
             let totalInches = heightInCm / 2.54
@@ -154,6 +205,7 @@ struct PersonalDetailsView: View {
         var updatedUserData = userData
         updatedUserData.name = name.isEmpty ? nil : name
         updatedUserData.age = Int(age)
+        updatedUserData.notificationPreference = notificationPreference
         
         if let feet = Int(heightFeet), let inches = Int(heightInches) {
             let totalInches = (feet * 12) + inches
@@ -172,50 +224,39 @@ struct PersonalDetailsView: View {
     }
 }
 
-// MARK: - Custom Components
-
-struct SectionView<Content: View>: View {
-    let title: String
-    let content: Content
-    
-    init(title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-                .foregroundColor(.secondary)
-            content
-        }
-    }
-}
-
-struct CompactTextField: View {
+// Custom Components
+struct JournalTextField: View {
     let title: String
     @Binding var text: String
     let keyboardType: UIKeyboardType
+    @FocusState private var isFocused: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(.custom("PlayfairDisplay-Regular", size: 16))
+                .foregroundColor(.black.opacity(0.6))
             TextField("", text: $text)
                 .keyboardType(keyboardType)
-                .padding(10)
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(8)
+                .font(.custom("PlayfairDisplay-Regular", size: 18))
+                .textFieldStyle(PlainTextFieldStyle())
+                .focused($isFocused)
+                .padding(.bottom, 8)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(.black.opacity(0.2)),
+                    alignment: .bottom
+                )
         }
     }
 }
 
-struct CompactNumberField: View {
+struct JournalNumberField: View {
     @Binding var text: String
     let unit: String
     let width: CGFloat
+    @FocusState private var isFocused: Bool
     
     var body: some View {
         HStack(spacing: 4) {
@@ -223,33 +264,43 @@ struct CompactNumberField: View {
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(width: width - 30)
+                .font(.custom("PlayfairDisplay-Regular", size: 18))
+                .focused($isFocused)
             Text(unit)
-                .foregroundColor(.secondary)
-                .font(.subheadline)
+                .font(.custom("PlayfairDisplay-Regular", size: 16))
+                .foregroundColor(.black.opacity(0.6))
         }
-        .padding(10)
-        .background(Color(UIColor.systemGray6))
-        .cornerRadius(8)
+        .padding(.bottom, 8)
+        .overlay(
+            Rectangle()
+                .frame(height: 1)
+                .foregroundColor(.black.opacity(0.2)),
+            alignment: .bottom
+        )
     }
 }
 
-struct CompactTimePicker: View {
+struct JournalTimePicker: View {
     let title: String
     @Binding var selection: Date
     
     var body: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Spacer()
+                .font(.custom("PlayfairDisplay-Regular", size: 16))
+                .foregroundColor(.black.opacity(0.6))
+            
             DatePicker("", selection: $selection, displayedComponents: .hourAndMinute)
                 .datePickerStyle(.compact)
                 .labelsHidden()
+                .padding(.bottom, 8)
+                .overlay(
+                    Rectangle()
+                        .frame(height: 1)
+                        .foregroundColor(.black.opacity(0.2)),
+                    alignment: .bottom
+                )
         }
-        .padding(10)
-        .background(Color(UIColor.systemGray6))
-        .cornerRadius(8)
     }
 }
 
