@@ -8,74 +8,83 @@ struct DailyChecklistView: View {
     @State private var selectedTab = 0
     @State private var appearAnimation = false
     @State private var hasLoaded = false
+    @FocusState private var isAnyTextFieldFocused: Bool
     
     private let headerHeight: CGFloat = 180
     private let minimizedHeaderHeight: CGFloat = 60
     
     var body: some View {
         NavigationView {
-            ZStack {
-                // Main content
-                ZStack(alignment: .bottom) {
-                    VStack(spacing: 0) {
-                        // Header Views with improved animation
-                        if let currentDay = viewModel.userData.currentDay {
-                            headerView(currentDay: currentDay)
-                                .opacity(appearAnimation ? 1 : 0)
-                                .offset(y: appearAnimation ? 0 : -20)
+            GeometryReader { geometry in
+                ZStack {
+                    // Background tap area with high priority
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                         to: nil,
+                                                         from: nil,
+                                                         for: nil)
                         }
-                        
-                        // Content
-                        if let currentDay = viewModel.userData.currentDay {
-                            if !hasLoaded && viewModel.isLoadingTasks {
-                                LoadingView(message: "")
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            } else {
-                                contentView(currentDay: currentDay)
-                                    .transition(.opacity)
+                        .zIndex(0) // Ensure it's behind other content
+                    
+                    // Main content
+                    ZStack(alignment: .bottom) {
+                        VStack(spacing: 0) {
+                            // Header Views with improved animation
+                            if let currentDay = viewModel.userData.currentDay {
+                                headerView(currentDay: currentDay)
+                                    .opacity(appearAnimation ? 1 : 0)
+                                    .offset(y: appearAnimation ? 0 : -20)
+                            }
+                            
+                            // Content
+                            if let currentDay = viewModel.userData.currentDay {
+                                if !hasLoaded && viewModel.isLoadingTasks {
+                                    LoadingView(message: "")
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                } else {
+                                    contentView(currentDay: currentDay)
+                                        .transition(.opacity)
+                                }
                             }
                         }
-                    }
-                    
-                    // Floating Action Button
-                    HStack(spacing: 40) {
-                        Button(action: {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            viewModel.showingHistory.toggle()
-                        }) {
-                            Image(systemName: "book")
-                                .font(.system(size: 24))
-                                .foregroundColor(.black)
-                        }
                         
-                        Button(action: {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            viewModel.showingPlanOverview.toggle()
-                        }) {
-                            Image(systemName: "chart.bar")
-                                .font(.system(size: 24))
-                                .foregroundColor(.black)
+                        // Floating Action Button
+                        HStack(spacing: 40) {
+                            Button(action: {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                viewModel.showingHistory.toggle()
+                            }) {
+                                Image(systemName: "book")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.black)
+                            }
+                            
+                            Button(action: {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                viewModel.showingPlanOverview.toggle()
+                            }) {
+                                Image(systemName: "chart.bar")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.black)
+                            }
                         }
+                        .padding(.vertical, 12)
+                        .padding(.horizontal, 24)
+                        .background(
+                            Capsule()
+                                .fill(Color.white)
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color(red: 0, green: 0.4, blue: 0), lineWidth: 1.5)
+                                )
+                        )
+                        .padding(.bottom, 30)
+                        .opacity(appearAnimation ? 1 : 0)
+                        .offset(y: appearAnimation ? 0 : 20)
                     }
-                    .padding(.vertical, 12)
-                    .padding(.horizontal, 24)
-                    .background(
-                        Capsule()
-                            .fill(Color.white)
-                            .overlay(
-                                Capsule()
-                                    .stroke(Color(red: 0, green: 0.4, blue: 0), lineWidth: 1.5)
-                            )
-                    )
-                    .padding(.bottom, 30)
-                    .opacity(appearAnimation ? 1 : 0)
-                    .offset(y: appearAnimation ? 0 : 20)
-                }
-                
-                // Confetti overlay
-                if viewModel.showConfetti {
-                    ConfettiView()
-                        .allowsHitTesting(false)
+                    .zIndex(1) // Ensure it's above the tap area
                 }
             }
             .ignoresSafeArea(edges: .top)
@@ -143,6 +152,12 @@ struct DailyChecklistView: View {
             .offset(y: appearAnimation ? 0 : 20)
             .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.dailyTasks.map { $0.isCompleted })
         }
+        .simultaneousGesture(TapGesture().onEnded { _ in
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                         to: nil,
+                                         from: nil,
+                                         for: nil)
+        })
     }
     
     @ViewBuilder
@@ -183,6 +198,7 @@ struct DailyChecklistView: View {
             if !viewModel.dailySummary.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     TypewriterText(viewModel.dailySummary)
+                        .font(.custom("PlayfairDisplay-Regular", size: 16))
                         .foregroundColor(.black)
                         .fixedSize(horizontal: false, vertical: true)
                         .lineLimit(nil)
@@ -297,66 +313,79 @@ extension Color {
 struct TaskCard: View {
     let task: DailyTask
     @EnvironmentObject var viewModel: AppViewModel
-    @State private var offset: CGFloat = 0
+    @State private var notes: String
+    @FocusState private var isTextFieldFocused: Bool
+    
+    init(task: DailyTask) {
+        self.task = task
+        _notes = State(initialValue: task.notes)
+    }
     
     var body: some View {
-        Button(action: {
-            withAnimation(.spring()) {
-                viewModel.toggleTask(task)
-                if !task.isCompleted {
-                    viewModel.triggerConfetti()
-                    
-                    // Haptic feedback
-                    let generator = UINotificationFeedbackGenerator()
-                    generator.notificationOccurred(.success)
-                }
-            }
-        }) {
-            VStack(spacing: 0) {
-                // Top section with emoji and task
-                HStack(spacing: 16) {
-                    Text(task.emoji)
-                        .font(.system(size: 32))
-                        .padding(12)
-                        .background(
-                            Circle()
-                                .fill(Color(UIColor.systemGray6))
-                        )
-                    
-                    VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top section with task and completion status
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    // Emoji and task title
+                    HStack(spacing: 8) {
+                        Text(task.emoji)
+                            .font(.system(size: 24))
                         Text(task.task)
-                            .font(.custom("PlayfairDisplay-Regular", size: 20))
-                            .foregroundColor(.black)
-                            .strikethrough(task.isCompleted, color: .black)
-                            .multilineTextAlignment(.leading)
-                        
-                        if task.isCompleted, let completionTime = task.formattedCompletionTime {
-                            Text(completionTime)
-                                .font(.system(size: 15))
-                                .foregroundColor(.gray)
-                        }
+                            .font(.custom("PlayfairDisplay-Regular", size: 18))
+                            .foregroundColor(.primary)
+                            .strikethrough(task.isCompleted, color: .primary)
                     }
-                    
-                    Spacer()
-                    
+                }
+                
+                Spacer()
+                
+                // Checkmark button
+                Button(action: {
+                    withAnimation(.spring()) {
+                        viewModel.toggleTask(task)
+                        if !task.isCompleted {
+                            viewModel.triggerConfetti()
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+                        }
+                        isTextFieldFocused = false
+                    }
+                }) {
                     Image(systemName: task.isCompleted ? "checkmark.circle.fill" : "circle")
                         .font(.system(size: 24, weight: .medium))
-                        .foregroundColor(task.isCompleted ? .green : Color(UIColor.systemGray4))
+                        .foregroundColor(task.isCompleted ? Color(red: 0, green: 0.4, blue: 0) : Color(UIColor.systemGray4))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
             }
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color.white)
-                    .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color(UIColor.systemGray5), lineWidth: 1)
-                    )
-            )
+            
+            Divider()
+                .background(Color(UIColor.systemGray5))
+            
+            // Notes section
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Notes")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.gray)
+                
+                TextField("Add your notes here...", text: $notes, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 15))
+                    .lineLimit(3...6)
+                    .focused($isTextFieldFocused)
+                    .onChange(of: notes) { newValue in
+                        viewModel.updateTaskNotes(task, notes: newValue)
+                    }
+            }
         }
-        .buttonStyle(TaskCardButtonStyle())
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(UIColor.systemBackground))
+                .shadow(color: Color.black.opacity(0.05), radius: 8, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color(UIColor.systemGray5), lineWidth: 1)
+        )
     }
 }
 
@@ -560,6 +589,18 @@ struct TimeBasedGradientCircle: View {
             Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
                 currentTime = Date()
             }
+        }
+    }
+}
+
+// Add this extension to enable tap gesture to dismiss keyboard globally
+extension View {
+    func dismissKeyboardOnTap() -> some View {
+        self.onTapGesture {
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                         to: nil,
+                                         from: nil,
+                                         for: nil)
         }
     }
 }
