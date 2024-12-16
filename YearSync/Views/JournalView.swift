@@ -97,10 +97,25 @@ struct JournalView: View {
                 
                 loadMessages()
                 setupMidnightTimer()
+                
+                // Add observer for weekly analysis completion
+                NotificationCenter.default.addObserver(
+                    forName: .weeklyJournalAnalysisCompleted,
+                    object: nil,
+                    queue: .main
+                ) { notification in
+                    if let summary = notification.userInfo?["summary"] as? WeeklySummary,
+                       let indices = notification.userInfo?["indices"] as? [Int] {
+                        userData.applyWeeklySummary(summary, entryIndices: indices)
+                    }
+                }
             }
             .onDisappear {
                 midnightTimer?.invalidate()
                 saveMessages()
+                
+                // Remove observer
+                NotificationCenter.default.removeObserver(self)
             }
             .onTapGesture {
                 isInputFocused = false

@@ -260,14 +260,22 @@ class AppViewModel: ObservableObject {
                         for i in 0..<updatedGoals.count {
                             // Normalize titles for comparison
                             let normalizedUserTitle = updatedGoals[i].title.lowercased().trimmingCharacters(in: .whitespaces)
+                            
                             if let generatedGoal = response.goals.first(where: { 
                                 let normalizedGeneratedTitle = $0.title.lowercased().trimmingCharacters(in: .whitespaces)
                                 return normalizedUserTitle == normalizedGeneratedTitle || 
                                       normalizedGeneratedTitle.contains(normalizedUserTitle) ||
                                       normalizedUserTitle.contains(normalizedGeneratedTitle)
                             }) {
+                                // First set the strategy
                                 updatedGoals[i].strategy = generatedGoal.strategy
-                                updatedGoals[i].subPlans = generatedGoal.subPlans
+                                
+                                // Set both subPlans and generatedPlan to the initial generated plans
+                                let initialPlans = generatedGoal.subPlans
+                                updatedGoals[i].subPlans = initialPlans
+                                updatedGoals[i].generatedPlan = initialPlans
+                                
+                                print("Set generated plan for goal '\(updatedGoals[i].title)': \(initialPlans)")
                             }
                         }
                         
@@ -397,23 +405,9 @@ class AppViewModel: ObservableObject {
                             lastHistory.summary = summary
                             self.userData.dailyTaskHistory[self.userData.dailyTaskHistory.count - 1] = lastHistory
                             
-                            // Ensure we have exactly 12 tasks
-                            let currentTaskCount = lastHistory.tasks.count
-                            if currentTaskCount < 12 {
-                                // Generate additional tasks if needed
-                                let additionalTasks = (12 - currentTaskCount)
-                                let defaultTasks = (0..<additionalTasks).map { i in
-                                    DailyTask(
-                                        goalTitle: self.userData.goals[i % self.userData.goals.count].title,
-                                        task: "Additional task \(i + 1)",
-                                        emoji: "📝",
-                                        intensity: .beginner
-                                    )
-                                }
-                                lastHistory.tasks.append(contentsOf: defaultTasks)
-                                self.userData.dailyTaskHistory[self.userData.dailyTaskHistory.count - 1] = lastHistory
-                                self.dailyTasks = lastHistory.tasks
-                            }
+                            // Remove the generation of blank additional tasks
+                            // We'll only use the AI-generated tasks that are relevant to goals
+                            self.userData.dailyTaskHistory[self.userData.dailyTaskHistory.count - 1] = lastHistory
                         }
                     }
                 }

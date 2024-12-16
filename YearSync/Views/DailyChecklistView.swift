@@ -148,37 +148,38 @@ struct DailyChecklistView: View {
     @ViewBuilder
     private func headerView(currentDay: Int) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .center, spacing: 16) {
-                // Use StableGradientCircle instead of AnimatedGradientCircle
-                HStack(spacing: 4) {
-                    StableGradientCircle(
-                        size: 40,
-                        primaryColor: Color(red: 0, green: 0.4, blue: 0)
-                    )
+            // Top row with circle, day counter, and progress bar
+            HStack(alignment: .top, spacing: 16) {
+                // Time-based gradient circle
+                TimeBasedGradientCircle(size: 40)
                     .frame(width: 40, height: 40)
-                    
-                    Text("Day \(currentDay)/\(viewModel.userData.planDuration)")
-                        .font(.custom("PlayfairDisplay-Regular", size: 34))
-                        .foregroundColor(.black)
-                }
                 
-                // Progress bar remains the same
+                // Day counter
+                Text("Day \(currentDay)/\(viewModel.userData.planDuration)")
+                    .font(.custom("PlayfairDisplay-Regular", size: 24))
+                    .foregroundColor(.black)
+                    .layoutPriority(1)
+                
+                // Progress bar - moved down 3 pixels
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color(UIColor.systemGray6))
-                            .frame(height: 20)
+                            .frame(height: 12)
                         
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color(red: 0, green: 0.4, blue: 0))
-                            .frame(width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
-                                   height: 20)
+                            .frame(
+                                width: geometry.size.width * (CGFloat(currentDay) / CGFloat(viewModel.userData.planDuration)),
+                                height: 12
+                            )
                     }
+                    .offset(y: 13) // Offset added here
                 }
                 .frame(height: 12)
-                .padding(.top, 8)
             }
             
+            // Summary text and line
             if !viewModel.dailySummary.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     TypewriterText(viewModel.dailySummary)
@@ -472,36 +473,66 @@ extension UIView {
     }
 }
 
-struct StableGradientCircle: View {
-    var size: CGFloat = 180
-    var primaryColor: Color = Color(red: 76/255, green: 175/255, blue: 80/255)
+struct TimeBasedGradientCircle: View {
+    var size: CGFloat
+    @State private var currentTime = Date()
+    
+    private var timeColors: (primary: Color, secondary: Color, accent: Color) {
+        let hour = Calendar.current.component(.hour, from: currentTime)
+        
+        switch hour {
+        case 5...8: // Dawn
+            return (
+                Color(red: 0.2, green: 0.3, blue: 0.5),
+                Color(red: 1.0, green: 0.6, blue: 0.2),
+                Color(red: 0.9, green: 0.7, blue: 0.4)
+            )
+        case 9...16: // Day
+            return (
+                Color(red: 0.95, green: 0.8, blue: 0.2),
+                Color(red: 1.0, green: 0.9, blue: 0.4),
+                Color.white
+            )
+        case 17...20: // Dusk
+            return (
+                Color(red: 0.8, green: 0.4, blue: 0.2),
+                Color(red: 0.6, green: 0.2, blue: 0.4),
+                Color(red: 1.0, green: 0.6, blue: 0.3)
+            )
+        default: // Night
+            return (
+                Color(red: 0.1, green: 0.1, blue: 0.3),
+                Color(red: 0.2, green: 0.2, blue: 0.4),
+                Color(red: 0.4, green: 0.4, blue: 0.6)
+            )
+        }
+    }
     
     var body: some View {
         ZStack {
-            // Outer blurred circle for fade effect
+            // Outer glow
             Circle()
                 .fill(
                     RadialGradient(
                         gradient: Gradient(colors: [
-                            primaryColor.opacity(0.2),
-                            primaryColor.opacity(0)
+                            timeColors.primary.opacity(0.3),
+                            timeColors.primary.opacity(0)
                         ]),
                         center: .center,
                         startRadius: size * 0.3,
-                        endRadius: size * 0.6
+                        endRadius: size * 0.8
                     )
                 )
                 .frame(width: size * 1.5, height: size * 1.5)
-                .blur(radius: 20)
+                .blur(radius: 15)
             
-            // Main gradient circle
+            // Main sun/moon circle
             Circle()
                 .fill(
                     RadialGradient(
                         gradient: Gradient(colors: [
-                            primaryColor.opacity(0.7),
-                            primaryColor.opacity(0.3),
-                            primaryColor.opacity(0.1)
+                            timeColors.secondary,
+                            timeColors.primary
                         ]),
                         center: .center,
                         startRadius: 0,
@@ -514,17 +545,21 @@ struct StableGradientCircle: View {
                         .stroke(
                             LinearGradient(
                                 gradient: Gradient(colors: [
-                                    .white.opacity(0.5),
-                                    .clear
+                                    timeColors.accent.opacity(0.8),
+                                    timeColors.accent.opacity(0.2)
                                 ]),
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             ),
                             lineWidth: 1
                         )
-                        .scaleEffect(0.98)
-                        .blur(radius: 1)
                 )
+        }
+        .onAppear {
+            // Update time every minute
+            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                currentTime = Date()
+            }
         }
     }
 }
