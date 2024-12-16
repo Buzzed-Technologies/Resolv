@@ -511,6 +511,22 @@ class AppViewModel: ObservableObject {
             self.showConfetti = false
         }
     }
+    
+    func updateTaskNotes(_ task: DailyTask, notes: String) {
+        if let index = dailyTasks.firstIndex(where: { $0.id == task.id }) {
+            dailyTasks[index].notes = notes
+            // Update the task in history if it exists
+            if let historyIndex = userData.dailyTaskHistory.lastIndex(where: { history in
+                history.tasks.contains(where: { $0.id == task.id })
+            }) {
+                if let taskIndex = userData.dailyTaskHistory[historyIndex].tasks.firstIndex(where: { $0.id == task.id }) {
+                    userData.dailyTaskHistory[historyIndex].tasks[taskIndex].notes = notes
+                }
+            }
+            // Save the updated user data
+            UserDefaultsHelper.shared.saveUserData(userData)
+        }
+    }
 }
 
 // Response models for OpenAI

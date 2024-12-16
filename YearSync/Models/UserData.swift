@@ -221,6 +221,9 @@ struct DailyTask: Codable, Identifiable, Hashable {
     var isCompleted: Bool
     var completedAt: Date?
     let intensity: TaskIntensity
+    var completionCount: Int = 0
+    var targetCount: Int = 1
+    var notes: String = ""
     
     init(id: UUID = UUID(), 
          goalTitle: String, 
@@ -228,7 +231,10 @@ struct DailyTask: Codable, Identifiable, Hashable {
          emoji: String = "📝", 
          isCompleted: Bool = false, 
          completedAt: Date? = nil,
-         intensity: TaskIntensity = .beginner) {
+         intensity: TaskIntensity = .beginner,
+         completionCount: Int = 0,
+         targetCount: Int = 1,
+         notes: String = "") {
         self.id = id
         self.goalTitle = goalTitle
         self.task = task
@@ -236,6 +242,9 @@ struct DailyTask: Codable, Identifiable, Hashable {
         self.isCompleted = isCompleted
         self.completedAt = completedAt
         self.intensity = intensity
+        self.completionCount = completionCount
+        self.targetCount = targetCount
+        self.notes = notes
     }
     
     enum TaskIntensity: String, Codable {
